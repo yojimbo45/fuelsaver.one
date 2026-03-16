@@ -3,9 +3,15 @@
  *
  * France:       data.economie.gouv.fr (open data, no key needed)
  * Germany:      Tankerkönig (requires free API key via VITE_TANKERKOENIG_KEY)
+ * Croatia:      Tankerkönig (same API, coordinate-based)
+ * Luxembourg:   Tankerkönig (same API, coordinate-based)
+ * Portugal:     Tankerkönig (same API, coordinate-based)
+ * Slovenia:     Tankerkönig (same API, coordinate-based)
  * Spain:        Ministerio REST API (open, no key)
  * Italy:        MIMIT open CSV (demo — needs backend proxy)
  * UK:           GOV.UK Fuel Finder (demo — needs backend proxy)
+ * USA:          Demo data (no free public station-level API)
+ * Canada:       Demo data (no free public station-level API)
  * Austria:      E-Control Spritpreisrechner (open, no key needed)
  * South Korea:  Opinet / KNOC (requires free API key via VITE_OPINET_KEY)
  * Chile:        CNE (open, no key needed)
@@ -45,10 +51,10 @@ async function fetchFrance(lat, lng, radiusKm, fuelType) {
   );
   url.searchParams.set('order_by', `distance(geom, geom'POINT(${lng} ${lat})')`);
 
-  // Fetch gov prices + OSM brands in parallel
-  const [govRes, osmBrands] = await Promise.all([
+  // Fetch gov prices + OSM station data in parallel
+  const [govRes, osmStations] = await Promise.all([
     fetch(url),
-    fetchOSMBrands(lat, lng, radiusKm),
+    fetchOSMStations(lat, lng, radiusKm),
   ]);
 
   if (!govRes.ok) throw new Error(`France API error: ${govRes.status}`);
@@ -73,8 +79,9 @@ async function fetchFrance(lat, lng, radiusKm, fuelType) {
     const stationLng = r.geom?.lon;
     if (stationLat == null || stationLng == null) return null;
 
-    // Match brand from OSM by closest fuel station within 150m
-    const brand = matchOSMBrand(osmBrands, stationLat, stationLng) || 'Station';
+    // Match OSM station for brand + extra info
+    const osm = matchOSMStation(osmStations, stationLat, stationLng);
+    const brand = osm?.brand || 'Station';
 
     // Services list
     const services = Array.isArray(r.services_service) ? r.services_service : [];
@@ -101,6 +108,10 @@ async function fetchFrance(lat, lng, radiusKm, fuelType) {
       services,
       is24h,
       outOfStock,
+      openingHours: osm?.opening_hours || null,
+      phone: osm?.phone || null,
+      website: osm?.website || null,
+      payment: osm?.payment || [],
     };
   }).filter(Boolean);
 }
@@ -156,41 +167,54 @@ function matchOSMStation(osmStations, stationLat, stationLng) {
   return best;
 }
 
-// ─── Germany (Tankerkönig) ─────────────────────────────────────────────
-async function fetchGermany(lat, lng, radiusKm, _fuelType) {
-  // Free API — requires key. User sets VITE_TANKERKOENIG_KEY env var.
-  const apiKey = import.meta.env.VITE_TANKERKOENIG_KEY;
-  if (!apiKey) {
-    console.warn('Tankerkönig API key not set (VITE_TANKERKOENIG_KEY). Using demo data.');
-    return generateDemoStations(lat, lng, radiusKm, 'DE');
-  }
+// ─── Tankerkönig shared fetcher ───────────────────────────────────────
+// Coordinate-based API covering DE, HR, LU, PT, SI and more.
+function createTankerkoenigFetcher(countryCode, defaultBrand) {
+  return async function (lat, lng, radiusKm, _fuelType) {
+    const apiKey = import.meta.env.VITE_TANKERKOENIG_KEY;
+    if (!apiKey) {
+      console.warn('Tankerkönig API key not set (VITE_TANKERKOENIG_KEY). Using demo data.');
+      return generateDemoStations(lat, lng, radiusKm, countryCode);
+    }
 
-  const rad = Math.min(radiusKm, 25); // API max 25 km
-  const url = `https://creativecommons.tankerkoenig.de/json/list.php?lat=${lat}&lng=${lng}&rad=${rad}&sort=dist&type=all&apikey=${apiKey}`;
+    const rad = Math.min(radiusKm, 25); // API max 25 km
+    const url = `https://creativecommons.tankerkoenig.de/json/list.php?lat=${lat}&lng=${lng}&rad=${rad}&sort=dist&type=all&apikey=${apiKey}`;
 
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Tankerkönig error: ${res.status}`);
-  const json = await res.json();
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Tankerkönig error: ${res.status}`);
+    const json = await res.json();
 
-  if (!json.ok) throw new Error(json.message || 'Tankerkönig error');
-  console.log('[FuelAPI] Germany raw response:', json);
+    if (!json.ok) throw new Error(json.message || 'Tankerkönig error');
+    console.log(`[FuelAPI] ${countryCode} (Tankerkönig) raw response:`, json);
 
-  return (json.stations || []).map((s) => ({
-    id: `DE-${s.id}`,
-    brand: s.brand || 'Tankstelle',
-    address: `${s.street || ''} ${s.houseNumber || ''}`.trim(),
-    city: `${s.postCode || ''} ${s.place || ''}`.trim(),
-    lat: s.lat,
-    lng: s.lng,
-    prices: {
-      ...(s.e5 != null && { e5: s.e5 }),
-      ...(s.e10 != null && { e10: s.e10 }),
-      ...(s.diesel != null && { diesel: s.diesel }),
-    },
-    updatedAt: null,
-    distance: s.dist,
-  }));
+    return (json.stations || []).map((s) => ({
+      id: `${countryCode}-${s.id}`,
+      brand: s.brand || defaultBrand,
+      address: `${s.street || ''} ${s.houseNumber || ''}`.trim(),
+      city: `${s.postCode || ''} ${s.place || ''}`.trim(),
+      lat: s.lat,
+      lng: s.lng,
+      prices: {
+        ...(s.e5 != null && { e5: s.e5 }),
+        ...(s.e10 != null && { e10: s.e10 }),
+        ...(s.diesel != null && { diesel: s.diesel }),
+      },
+      updatedAt: null,
+      distance: s.dist,
+      isOpen: s.isOpen ?? null,
+      is24h: s.wholeDay === true,
+      openingHours: Array.isArray(s.openingTimes)
+        ? s.openingTimes.map((t) => `${t.text}: ${t.start}–${t.end}`).join(', ')
+        : null,
+    }));
+  };
 }
+
+const fetchGermany = createTankerkoenigFetcher('DE', 'Tankstelle');
+const fetchCroatia = createTankerkoenigFetcher('HR', 'Benzinska');
+const fetchLuxembourg = createTankerkoenigFetcher('LU', 'Tankstelle');
+const fetchPortugal = createTankerkoenigFetcher('PT', 'Posto');
+const fetchSlovenia = createTankerkoenigFetcher('SI', 'Bencinska');
 
 // ─── Spain ─────────────────────────────────────────────────────────────
 async function fetchSpain(lat, lng, radiusKm, _fuelType) {
@@ -247,8 +271,8 @@ async function fetchSpain(lat, lng, radiusKm, _fuelType) {
   return stations;
 }
 
-// ─── Italy / UK — demo fallback ────────────────────────────────────────
-// These countries require backend proxying of CSV/JSON feeds.
+// ─── Italy / UK / USA / Canada — demo fallback ───────────────────────
+// These countries require backend proxying or have no free public API.
 // For now we generate demo data; you'll wire up a real backend later.
 async function fetchItaly(lat, lng, radiusKm) {
   return generateDemoStations(lat, lng, radiusKm, 'IT');
@@ -256,6 +280,14 @@ async function fetchItaly(lat, lng, radiusKm) {
 
 async function fetchUK(lat, lng, radiusKm) {
   return generateDemoStations(lat, lng, radiusKm, 'UK');
+}
+
+async function fetchUSA(lat, lng, radiusKm) {
+  return generateDemoStations(lat, lng, radiusKm, 'US');
+}
+
+async function fetchCanada(lat, lng, radiusKm) {
+  return generateDemoStations(lat, lng, radiusKm, 'CA');
 }
 
 // ─── Austria (E-Control) ──────────────────────────────────────────────
@@ -616,6 +648,10 @@ async function fetchSwitzerland(lat, lng, radiusKm, _fuelType) {
 const BRANDS = {
   FR: ['TotalEnergies', 'Leclerc', 'Carrefour', 'Intermarché', 'Auchan', 'BP', 'Shell', 'Esso'],
   DE: ['Aral', 'Shell', 'Esso', 'Total', 'JET', 'AVIA', 'Agip', 'Star'],
+  HR: ['INA', 'Petrol', 'MOL', 'OMV', 'Tifon', 'Crodux', 'Lukoil'],
+  LU: ['Aral', 'Shell', 'TotalEnergies', 'Q8', 'Esso', 'Lukoil', 'Gulf'],
+  PT: ['Galp', 'Repsol', 'BP', 'Cepsa', 'Prio', 'Intermarche', 'Jumbo'],
+  SI: ['Petrol', 'MOL', 'OMV', 'Hofer (AVIA)', 'Euroil'],
   UK: ['BP', 'Shell', 'Esso', 'Tesco', 'Sainsbury\'s', 'Asda', 'Morrisons', 'Texaco'],
   ES: ['Repsol', 'Cepsa', 'BP', 'Shell', 'Galp', 'Petronor', 'Ballenoil'],
   IT: ['Eni', 'IP', 'Q8', 'TotalErg', 'Tamoil', 'Esso', 'API', 'Shell'],
@@ -627,11 +663,17 @@ const BRANDS = {
   BR: ['Petrobras', 'Ipiranga', 'Shell', 'Ale', 'Repsol'],
   AR: ['YPF', 'Shell', 'Axion Energy', 'Puma', 'Gulf', 'Petrobras'],
   CH: ['Migrol', 'AVIA', 'Coop Pronto', 'Shell', 'BP', 'Eni', 'Agrola', 'Ruedi R\u00FCssel'],
+  US: ['Shell', 'Chevron', 'ExxonMobil', 'BP', 'Marathon', 'Valero', 'Citgo', 'Sunoco', 'Costco', 'Sam\'s Club', 'QuikTrip', 'Wawa'],
+  CA: ['Petro-Canada', 'Shell', 'Esso', 'Canadian Tire Gas', 'Ultramar', 'Costco', 'Pioneer', 'Husky', 'Co-op', 'Mobil'],
 };
 
 const FUEL_RANGES = {
   FR: { SP95: [1.65, 1.95], SP98: [1.75, 2.05], E10: [1.60, 1.90], Gazole: [1.55, 1.85], E85: [0.75, 0.95], GPLc: [0.85, 1.05] },
   DE: { e5: [1.65, 1.95], e10: [1.60, 1.90], diesel: [1.55, 1.85] },
+  HR: { e5: [1.40, 1.65], e10: [1.35, 1.60], diesel: [1.35, 1.60] },
+  LU: { e5: [1.45, 1.70], e10: [1.40, 1.65], diesel: [1.40, 1.65] },
+  PT: { e5: [1.60, 1.90], e10: [1.55, 1.85], diesel: [1.50, 1.80] },
+  SI: { e5: [1.45, 1.70], e10: [1.40, 1.65], diesel: [1.40, 1.65] },
   UK: { unleaded: [135, 155], diesel: [140, 160], super_unleaded: [150, 170] },
   ES: { gasolina95: [1.45, 1.75], gasolina98: [1.55, 1.85], gasoleo: [1.40, 1.70], glp: [0.75, 0.95] },
   IT: { benzina: [1.70, 2.00], gasolio: [1.60, 1.90], gpl: [0.70, 0.90], metano: [1.30, 1.60] },
@@ -643,6 +685,8 @@ const FUEL_RANGES = {
   BR: { gasolina: [5.5, 7.0], gasolina_ad: [5.8, 7.3], etanol: [3.5, 5.0], diesel: [5.0, 6.5], gnv: [3.5, 5.0] },
   AR: { nafta_super: [500, 800], nafta_premium: [600, 900], diesel: [500, 750], diesel_premium: [600, 850], gnc: [200, 400] },
   CH: { E95: [1.70, 1.95], E98: [1.80, 2.05], Diesel: [1.75, 2.00] },
+  US: { regular: [3.10, 3.80], midgrade: [3.50, 4.20], premium: [3.90, 4.60], diesel: [3.60, 4.30] },
+  CA: { regular: [1.50, 1.85], midgrade: [1.65, 2.00], premium: [1.80, 2.15], diesel: [1.60, 1.95] },
 };
 
 function generateDemoStations(lat, lng, radiusKm, country) {
@@ -686,6 +730,10 @@ function generateDemoStations(lat, lng, radiusKm, country) {
 const fetchers = {
   FR: fetchFrance,
   DE: fetchGermany,
+  HR: fetchCroatia,
+  LU: fetchLuxembourg,
+  PT: fetchPortugal,
+  SI: fetchSlovenia,
   ES: fetchSpain,
   IT: fetchItaly,
   UK: fetchUK,
@@ -697,6 +745,8 @@ const fetchers = {
   BR: fetchBrazil,
   AR: fetchArgentina,
   CH: fetchSwitzerland,
+  US: fetchUSA,
+  CA: fetchCanada,
 };
 
 export async function fetchStations(countryCode, lat, lng, radiusKm, fuelType) {

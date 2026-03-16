@@ -7,9 +7,15 @@ const RADIUS_OPTIONS = [1, 2, 5, 10, 15, 20, 30];
 function getUrlParams() {
   const params = new URLSearchParams(window.location.search);
   const r = Number(params.get('radius'));
+  const lat = params.get('lat') ? Number(params.get('lat')) : null;
+  const lng = params.get('lng') ? Number(params.get('lng')) : null;
   return {
     radius: RADIUS_OPTIONS.includes(r) ? r : null,
     fuel: params.get('fuel') || null,
+    lat: lat != null && !isNaN(lat) ? lat : null,
+    lng: lng != null && !isNaN(lng) ? lng : null,
+    country: params.get('country') || null,
+    q: params.get('q') || null,
   };
 }
 
@@ -38,6 +44,32 @@ export default function SearchBar({ onSearch, onCountryDetected }) {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  // Restore search from URL params on mount (for shared links)
+  useEffect(() => {
+    const p = urlParams.current;
+    if (p.lat != null && p.lng != null && p.country && COUNTRIES[p.country]) {
+      const cc = p.country;
+      const countryFuels = COUNTRIES[cc].fuelTypes.map((f) => f.id);
+      const fuel = p.fuel && countryFuels.includes(p.fuel) ? p.fuel : COUNTRIES[cc].defaultFuel;
+      const rad = p.radius || 5;
+
+      setQuery(p.q || '');
+      setSelectedCoords({ lat: p.lat, lng: p.lng });
+      setDetectedCountry(cc);
+      setFuelType(fuel);
+      setRadius(rad);
+      onCountryDetected?.(cc);
+      onSearch({
+        query: p.q || '',
+        radiusKm: rad,
+        fuelType: fuel,
+        lat: p.lat,
+        lng: p.lng,
+        country: cc,
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleInputChange = useCallback((e) => {
     const val = e.target.value;
@@ -80,8 +112,12 @@ export default function SearchBar({ onSearch, onCountryDetected }) {
   const triggerSearch = useCallback((fuel, rad) => {
     if (!detectedCountry) return;
 
-    // Sync search settings to URL
-    const params = new URLSearchParams(window.location.search);
+    // Sync all search state to URL for sharing
+    const params = new URLSearchParams();
+    if (query.trim()) params.set('q', query.trim());
+    if (selectedCoords?.lat != null) params.set('lat', selectedCoords.lat);
+    if (selectedCoords?.lng != null) params.set('lng', selectedCoords.lng);
+    params.set('country', detectedCountry);
     params.set('fuel', fuel);
     params.set('radius', rad);
     window.history.replaceState(null, '', `?${params.toString()}`);

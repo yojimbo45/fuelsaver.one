@@ -6,9 +6,9 @@ function getToken() {
 
 // Map ISO alpha-2 codes to our country config keys
 const ISO_TO_COUNTRY = {
-  FR: 'FR', DE: 'DE', GB: 'UK', ES: 'ES', IT: 'IT',
-  AT: 'AT', KR: 'KR', CL: 'CL', AU: 'AU', MX: 'MX',
-  BR: 'BR', AR: 'AR', CH: 'CH',
+  FR: 'FR', DE: 'DE', GB: 'UK', HR: 'HR', ES: 'ES', IT: 'IT',
+  LU: 'LU', AT: 'AT', PT: 'PT', SI: 'SI', KR: 'KR', CL: 'CL',
+  AU: 'AU', MX: 'MX', BR: 'BR', AR: 'AR', CH: 'CH', US: 'US', CA: 'CA',
 };
 
 function extractCountryCode(feature) {
