@@ -110,14 +110,16 @@ export default function SearchBar({ onSearch, onCountryDetected, activeFuelType 
   const triggerSearch = useCallback((fuel) => {
     if (!detectedCountry) return;
 
-    // Sync all search state to URL for sharing
-    const params = new URLSearchParams();
-    if (query.trim()) params.set('q', query.trim());
-    if (selectedCoords?.lat != null) params.set('lat', selectedCoords.lat);
-    if (selectedCoords?.lng != null) params.set('lng', selectedCoords.lng);
-    params.set('country', detectedCountry);
-    params.set('fuel', fuel);
-    window.history.replaceState(null, '', `?${params.toString()}`);
+    // Sync all search state to URL for sharing (skip on trip page)
+    if (!window.location.hash.startsWith('#/trip')) {
+      const params = new URLSearchParams();
+      if (query.trim()) params.set('q', query.trim());
+      if (selectedCoords?.lat != null) params.set('lat', selectedCoords.lat);
+      if (selectedCoords?.lng != null) params.set('lng', selectedCoords.lng);
+      params.set('country', detectedCountry);
+      params.set('fuel', fuel);
+      window.history.replaceState(null, '', `?${params.toString()}`);
+    }
 
     onSearch({
       query: query.trim(),

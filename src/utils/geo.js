@@ -36,8 +36,9 @@ const COUNTRY_BOUNDS = [
   { code: 'AT', latMin: 46.3, latMax: 49.0, lngMin: 9.5, lngMax: 17.2 },
   { code: 'BE', latMin: 49.5, latMax: 51.5, lngMin: 2.5, lngMax: 6.4 },
   { code: 'NL', latMin: 50.7, latMax: 53.6, lngMin: 3.3, lngMax: 7.2 },
-  { code: 'DK', latMin: 54.5, latMax: 57.8, lngMin: 8.0, lngMax: 15.2 },
+  { code: 'DK', latMin: 54.5, latMax: 57.8, lngMin: 8.0, lngMax: 12.7 },
   { code: 'HR', latMin: 42.3, latMax: 46.6, lngMin: 13.5, lngMax: 19.5 },
+  { code: 'TR', latMin: 36.0, latMax: 42.1, lngMin: 26.0, lngMax: 44.9 },
   { code: 'GR', latMin: 34.8, latMax: 41.8, lngMin: 19.3, lngMax: 29.7 },
   { code: 'PT', latMin: 36.9, latMax: 42.2, lngMin: -9.5, lngMax: -6.2 },
   { code: 'IE', latMin: 51.4, latMax: 55.4, lngMin: -10.5, lngMax: -5.9 },
@@ -68,6 +69,12 @@ const COUNTRY_BOUNDS = [
   { code: 'LV', latMin: 55.7, latMax: 58.1, lngMin: 20.9, lngMax: 28.2 },
   { code: 'LT', latMin: 53.9, latMax: 56.5, lngMin: 20.9, lngMax: 26.8 },
   { code: 'PL', latMin: 49.0, latMax: 54.9, lngMin: 14.1, lngMax: 24.2 },
+  { code: 'FI', latMin: 59.8, latMax: 70.1, lngMin: 19.7, lngMax: 31.6 },
+  { code: 'SE', latMin: 55.3, latMax: 69.1, lngMin: 11.1, lngMax: 24.2 },
+  { code: 'NO', latMin: 57.9, latMax: 71.2, lngMin: 4.5, lngMax: 31.1 },
+  { code: 'RO', latMin: 43.6, latMax: 48.3, lngMin: 20.2, lngMax: 29.7 },
+  { code: 'HU', latMin: 45.7, latMax: 48.6, lngMin: 16.1, lngMax: 22.9 },
+  { code: 'CZ', latMin: 48.5, latMax: 51.1, lngMin: 12.1, lngMax: 18.9 },
 ];
 
 export function detectCountryFromCoords(lat, lng) {

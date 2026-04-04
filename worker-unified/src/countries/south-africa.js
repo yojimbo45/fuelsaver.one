@@ -64,10 +64,15 @@ export async function handleQuery(url, env) {
 
   let stations = await getGridCache(cacheKey, env);
   if (!stations) {
-    const radiusM = Math.min(radiusKm * 1000, 25000);
-    const elements = await queryOverpass(grid.lat, grid.lng, radiusM);
-    stations = mapElements(elements);
-    await putGridCache(cacheKey, stations, env, 3600);
+    try {
+      const radiusM = Math.min(radiusKm * 1000, 25000);
+      const elements = await queryOverpass(grid.lat, grid.lng, radiusM);
+      stations = mapElements(elements);
+      await putGridCache(cacheKey, stations, env, 3600);
+    } catch (e) {
+      console.error('[ZA] Overpass failed:', e.message);
+      stations = [];
+    }
   }
 
   const filtered = filterByDistance(stations, lat, lng, radiusKm);

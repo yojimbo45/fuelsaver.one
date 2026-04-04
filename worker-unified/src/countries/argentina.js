@@ -1,6 +1,7 @@
 import { filterByDistance } from '../lib/geo.js';
 import { json } from '../lib/response.js';
 import { getStations, putStations } from '../lib/kv.js';
+import { assignLogos } from '../lib/brandfetch.js';
 
 const COUNTRY = 'AR';
 const CSV_URL =
@@ -92,62 +93,6 @@ function splitCSVLine(line) {
   }
   result.push(current);
   return result;
-}
-
-// Resolve logo URL from Brandfetch API, with KV caching (30-day TTL)
-async function resolveLogos(brands, env) {
-  const logoMap = {};
-  const apiKey = env.BRANDFETCH_KEY;
-  if (!apiKey) {
-    console.log('[AR] No BRANDFETCH_KEY in env, skipping logo resolution');
-    return logoMap;
-  }
-
-  for (const brand of brands) {
-    const domain = BRAND_DOMAINS[brand];
-    if (!domain) continue;
-
-    const cacheKey = `ar-logo:${brand}`;
-
-    // Check KV cache first
-    const cached = await env.FUEL_KV.get(cacheKey);
-    if (cached) {
-      logoMap[brand] = cached;
-      continue;
-    }
-
-    // Call Brandfetch API
-    try {
-      const res = await fetch(`https://api.brandfetch.io/v2/brands/${domain}`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      });
-      if (!res.ok) {
-        console.log(`[AR] Brandfetch ${res.status} for ${domain}`);
-        continue;
-      }
-      const data = await res.json();
-      let bestUrl = null;
-      for (const logo of (data.logos || [])) {
-        const formats = logo.formats || [];
-        const pngOrJpg = formats.find((f) => f.format === 'png' || f.format === 'jpeg');
-        const svg = formats.find((f) => f.format === 'svg');
-        const pick = pngOrJpg || svg;
-        if (pick?.src) {
-          bestUrl = pick.src;
-          if (logo.type === 'icon') break; // icon is ideal
-        }
-      }
-      if (bestUrl) {
-        logoMap[brand] = bestUrl;
-        await env.FUEL_KV.put(cacheKey, bestUrl, { expirationTtl: 2592000 }); // 30 days
-        console.log(`[AR] Resolved logo for ${brand}: ${bestUrl}`);
-      }
-    } catch (err) {
-      console.log(`[AR] Brandfetch error for ${brand}: ${err.message}`);
-    }
-  }
-
-  return logoMap;
 }
 
 export async function refresh(env) {
@@ -249,24 +194,17 @@ export async function refresh(env) {
     }
   }
 
-  // Collect unique brands and resolve logos via Brandfetch
-  const uniqueBrands = new Set();
-  for (const s of stationMap.values()) {
-    if (s.brand && s.brand !== 'Station') uniqueBrands.add(s.brand);
-  }
-  const logoMap = await resolveLogos([...uniqueBrands], env);
-
-  // Clean up internal fields, assign logos, and collect valid stations
+  // Clean up internal fields and collect valid stations
   const stations = [];
   for (const s of stationMap.values()) {
     delete s._priceDate;
     if (Object.keys(s.prices).length > 0) {
-      s.logo = logoMap[s.brand] || null;
       stations.push(s);
     }
   }
 
-  console.log(`[AR] Parsed ${lines.length - 1} CSV rows, normalized ${stations.length} stations, resolved ${Object.keys(logoMap).length} brand logos`);
+  const logoCount = await assignLogos(stations, BRAND_DOMAINS, env, 'AR');
+  console.log(`[AR] Parsed ${lines.length - 1} CSV rows, ${stations.length} stations, ${logoCount} logos`);
   await putStations(COUNTRY, stations, env);
 }
 

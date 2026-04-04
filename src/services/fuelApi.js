@@ -22,8 +22,32 @@ async function fetchFromWorker(countryCode, lat, lng, radiusKm, fuelType) {
   url.searchParams.set('radius', radiusKm);
   if (fuelType) url.searchParams.set('fuelType', fuelType);
 
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  let res;
+  try {
+    res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  } catch (err) {
+    // Retry once on timeout
+    await new Promise((r) => setTimeout(r, 1000));
+    res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  }
+  if (!res.ok) {
+    if (res.status === 503) {
+      // Retry once on 503 (data not cached yet)
+      await new Promise((r) => setTimeout(r, 1000));
+      const retry = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!retry.ok) throw new Error(`API error: ${retry.status}`);
+      const json = await retry.json();
+      return (json.stations || []).map((s) => {
+        if (!s.prices) return s;
+        const normalized = {};
+        for (const [key, val] of Object.entries(s.prices)) {
+          normalized[key] = typeof val === 'object' && val !== null ? val.price : val;
+        }
+        return { ...s, prices: normalized };
+      });
+    }
+    throw new Error(`API error: ${res.status}`);
+  }
   const json = await res.json();
 
   // Normalize prices: some handlers return {price: number}, others return raw numbers
@@ -43,6 +67,9 @@ const SUPPORTED_COUNTRIES = [
   'DE', 'HR', 'LU', 'PT', 'SI', 'AT', 'KR', 'AU',
   'DK', 'NZ', 'NL', 'BE', 'GR', 'MY', 'AE', 'ZA', 'IN',
   'EE', 'LV', 'LT', 'PL',
+  'TH', 'JP', 'ID', 'FI',
+  'RO', 'HU', 'CZ',
+  'NO', 'SE', 'TR',
 ];
 
 const fetchers = Object.fromEntries(
@@ -91,6 +118,16 @@ const BRANDS = {
   LV: ['Circle K', 'Neste', 'Viada', 'Virsi', 'Astarte', 'Gotika'],
   LT: ['Circle K', 'Neste', 'Viada', 'Orlen', 'Amic', 'EMSI'],
   PL: ['Orlen', 'BP', 'Shell', 'Circle K', 'Amic', 'Moya', 'Lotos', 'AVIA'],
+  TH: ['PTT', 'Bangchak', 'Shell', 'Esso', 'Caltex', 'PT', 'Susco'],
+  JP: ['ENEOS', 'apollostation', 'Cosmo', 'Shell', 'Kygnus', 'Solato'],
+  ID: ['Pertamina', 'Shell', 'BP', 'Vivo', 'TotalEnergies'],
+  FI: ['Neste', 'St1', 'Shell', 'Teboil', 'ABC', 'Neste K'],
+  RO: ['Petrom', 'OMV', 'Lukoil', 'MOL', 'Rompetrol', 'Socar', 'Gazprom'],
+  HU: ['MOL', 'OMV', 'Shell', 'Auchan', 'AVIA', 'Orlen', 'ALDI'],
+  CZ: ['MOL', 'OMV', 'Shell', 'Orlen', 'Eni', 'EuroOil', 'Benzina'],
+  NO: ['Circle K', 'Esso', 'Shell', 'Uno-X', 'YX', 'St1', 'Best', 'Automat 1'],
+  SE: ['Circle K', 'OKQ8', 'Preem', 'Shell', 'St1', 'Tanka', 'Ingo', 'Qstar'],
+  TR: ['Petrol Ofisi', 'Opet', 'Shell', 'BP', 'Aytemiz', 'TP', 'TotalEnergies', 'Lukoil', 'Alpet'],
 };
 
 const FUEL_RANGES = {
@@ -125,6 +162,16 @@ const FUEL_RANGES = {
   LV: { e95: [1.70, 1.90], e98: [1.80, 2.00], diesel: [1.65, 1.85], lpg: [0.70, 0.95] },
   LT: { e95: [1.70, 1.90], e98: [1.80, 2.00], diesel: [1.65, 1.85], lpg: [0.70, 0.95] },
   PL: { pb95: [6.00, 7.50], pb98: [7.00, 8.50], diesel: [6.00, 7.50], lpg: [2.50, 3.80], on_plus: [7.00, 8.50] },
+  TH: { gasohol95: [35, 42], gasohol91: [33, 40], e20: [30, 37], diesel_premium: [35, 40], diesel: [30, 35] },
+  JP: { regular: [155, 180], premium: [165, 195], diesel: [135, 160] },
+  ID: { pertalite: [10000, 10000], pertamax: [12300, 12300], pertamax_turbo: [14250, 14250], solar: [6800, 6800], dexlite: [13800, 13800] },
+  FI: { e95: [1.75, 1.95], e98: [1.85, 2.05], diesel: [1.70, 1.90], lpg: [0.70, 0.95] },
+  RO: { benzina95: [7.5, 9.5], benzina_premium: [8.0, 10.0], diesel: [8.0, 10.5], diesel_premium: [8.5, 11.0], gpl: [3.5, 4.5] },
+  HU: { e5: [580, 650], diesel: [600, 670], lpg: [350, 420] },
+  CZ: { natural95: [36, 42], diesel: [36, 42], lpg: [16, 22] },
+  NO: { gasoline_95: [18, 22], diesel: [20, 25] },
+  SE: { '95': [18, 22], '98': [20, 24], diesel: [22, 27], etanol: [15, 19] },
+  TR: { benzin95: [42, 46], motorin: [43, 47], lpg: [16, 19] },
 };
 
 function generateDemoStations(lat, lng, radiusKm, country) {

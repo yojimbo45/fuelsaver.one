@@ -1,5 +1,6 @@
 import { handleOptions } from './lib/cors.js';
 import { json } from './lib/response.js';
+import { VEHICLES } from './data/vehicles.js';
 
 // Tier A — bulk-cached countries (full dataset refresh via cron)
 import * as france from './countries/france.js';
@@ -19,6 +20,11 @@ import * as portugal from './countries/portugal.js';
 import * as thailand from './countries/thailand.js';
 import * as indonesia from './countries/indonesia.js';
 import * as ireland from './countries/ireland.js';
+import * as greece from './countries/greece.js';
+import * as romania from './countries/romania.js';
+import * as hungary from './countries/hungary.js';
+import * as czech from './countries/czech.js';
+import * as turkey from './countries/turkey.js';
 
 // Tier B — proxy + grid-cache (on-demand)
 import * as tankerkoenig from './countries/tankerkoenig.js';
@@ -28,7 +34,6 @@ import * as australia from './countries/australia.js';
 import * as newZealand from './countries/new-zealand.js';
 import * as netherlands from './countries/netherlands.js';
 import * as belgium from './countries/belgium.js';
-import * as greece from './countries/greece.js';
 import * as uae from './countries/uae.js';
 import * as southAfrica from './countries/south-africa.js';
 import * as luxembourg from './countries/luxembourg.js';
@@ -38,6 +43,10 @@ import * as estonia from './countries/estonia.js';
 import * as latvia from './countries/latvia.js';
 import * as lithuania from './countries/lithuania.js';
 import * as poland from './countries/poland.js';
+import * as finland from './countries/finland.js';
+import * as norway from './countries/norway.js';
+
+import * as sweden from './countries/sweden.js';
 
 // Tier C — proxy
 import * as brazil from './countries/brazil.js';
@@ -48,6 +57,8 @@ const TIER_A = {
   dk: denmark, wa: australiaWA, my: malaysia,
   hr: croatia, si: slovenia, pt: portugal,
   th: thailand, id: indonesia, ie: ireland,
+  ro: romania, hu: hungary, cz: czech,
+  gr: greece, tr: turkey,
 };
 
 const HANDLERS = {
@@ -61,7 +72,6 @@ const HANDLERS = {
   nz: newZealand,
   nl: netherlands,
   be: belgium,
-  gr: greece,
   ae: uae,
   za: southAfrica,
   in: india,
@@ -70,6 +80,9 @@ const HANDLERS = {
   lv: latvia,
   lt: lithuania,
   pl: poland,
+  fi: finland,
+  no: norway,
+  se: sweden,
 };
 
 export default {
@@ -202,6 +215,11 @@ export default {
       });
     }
 
+    // Vehicle search API
+    if (url.pathname === '/api/vehicles') {
+      return handleVehicles(url);
+    }
+
     const match = url.pathname.match(/^\/api\/([a-z]{2})$/);
 
     if (!match) {
@@ -248,6 +266,37 @@ export default {
     }
   },
 };
+
+// ─── Vehicle search ─────────────────────────────────────────────────
+
+function handleVehicles(url) {
+  const q = (url.searchParams.get('q') || '').toLowerCase().trim();
+  const year = parseInt(url.searchParams.get('year')) || null;
+
+  let results = VEHICLES;
+
+  // Filter by year if provided
+  if (year) {
+    results = results.filter(v => {
+      const [from, to] = v.years.split('-').map(Number);
+      return year >= from && year <= to;
+    });
+  }
+
+  // Search by query (matches make or model)
+  if (q) {
+    results = results.filter(v =>
+      v.make.toLowerCase().includes(q) ||
+      v.model.toLowerCase().includes(q) ||
+      `${v.make} ${v.model}`.toLowerCase().includes(q)
+    );
+  }
+
+  return json({
+    count: results.length,
+    vehicles: results.slice(0, 50),
+  });
+}
 
 // ─── Logo proxy ──────────────────────────────────────────────────────
 import { CORS_HEADERS } from './lib/cors.js';

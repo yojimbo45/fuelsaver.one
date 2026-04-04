@@ -1,10 +1,73 @@
 import { filterByDistance } from '../lib/geo.js';
 import { json } from '../lib/response.js';
 import { getStations, putStations } from '../lib/kv.js';
+import { assignLogos } from '../lib/brandfetch.js';
 
 const COUNTRY = 'MX';
 const PLACES_URL = 'https://publicacionexterna.azurewebsites.net/publicaciones/places';
 const PRICES_URL = 'https://publicacionexterna.azurewebsites.net/publicaciones/prices';
+
+// Brand normalization: raw station name keywords → clean brand
+const BRAND_NORMALIZE = {
+  pemex: 'Pemex',
+  bp: 'BP',
+  shell: 'Shell',
+  mobil: 'Mobil',
+  total: 'TotalEnergies',
+  totalenergies: 'TotalEnergies',
+  'oxxo gas': 'Oxxo Gas',
+  oxxo: 'Oxxo Gas',
+  g500: 'G500',
+  'g-500': 'G500',
+  arco: 'Arco',
+  chevron: 'Chevron',
+  gulf: 'Gulf',
+  repsol: 'Repsol',
+  exxon: 'Mobil',
+  texaco: 'Texaco',
+  marathon: 'Marathon',
+  valero: 'Valero',
+  '76': '76',
+  orsan: 'Orsan',
+  hidrosina: 'Hidrosina',
+  lodemo: 'Lodemo',
+  'full gas': 'Full Gas',
+  redco: 'Redco',
+  rendichicas: 'Rendichicas',
+};
+
+function normalizeBrand(name) {
+  if (!name) return 'Station';
+  const lower = name.toLowerCase().trim();
+  // Try exact match first
+  if (BRAND_NORMALIZE[lower]) return BRAND_NORMALIZE[lower];
+  // Try keyword match
+  for (const [key, brand] of Object.entries(BRAND_NORMALIZE)) {
+    if (lower.includes(key)) return brand;
+  }
+  return name.trim();
+}
+
+// Brand → website domain for Brandfetch logo resolution
+const BRAND_DOMAINS = {
+  'Pemex': 'pemex.com',
+  'BP': 'bp.com',
+  'Shell': 'shell.com',
+  'Mobil': 'exxonmobil.com',
+  'TotalEnergies': 'totalenergies.com',
+  'Oxxo Gas': 'oxxo.com',
+  'G500': 'g500.mx',
+  'Arco': 'arco.com',
+  'Chevron': 'chevron.com',
+  'Gulf': 'gulfoil.com',
+  'Repsol': 'repsol.com',
+  'Texaco': 'texaco.com',
+  'Marathon': 'marathonpetroleum.com',
+  'Valero': 'valero.com',
+  '76': '76.com',
+  'Hidrosina': 'hidrosina.com.mx',
+  'Rendichicas': 'rendichicas.com.mx',
+};
 
 function parseXMLField(xml, tag) {
   const regex = new RegExp(`<${tag}>([^<]*)</${tag}>`);
@@ -28,11 +91,12 @@ function parsePlaces(xml) {
     if (lat < 14 || lat > 33 || lng < -118 || lng > -86) continue;
 
     const name = parseXMLField(content, 'name');
+    const brand = normalizeBrand(name);
 
     map.set(placeId, {
       id: placeId,
-      brand: name || 'Station',
-      name: name || '',
+      brand,
+      name: name || brand,
       address: '',
       city: '',
       lat,
@@ -94,7 +158,8 @@ export async function refresh(env) {
     }
   }
 
-  console.log(`[MX] Fetched ${stationMap.size} places, ${stations.length} with prices`);
+  const logoCount = await assignLogos(stations, BRAND_DOMAINS, env, 'MX');
+  console.log(`[MX] Fetched ${stationMap.size} places, ${stations.length} with prices, ${logoCount} logos`);
   await putStations(COUNTRY, stations, env);
 }
 

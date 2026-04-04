@@ -11,6 +11,10 @@ const ISO_TO_COUNTRY = {
   AU: 'AU', MX: 'MX', BR: 'BR', AR: 'AR', CH: 'CH',
   DK: 'DK', NZ: 'NZ', NL: 'NL', BE: 'BE', GR: 'GR',
   MY: 'MY', AE: 'AE', ZA: 'ZA', IN: 'IN',
+  IE: 'IE', EE: 'EE', LV: 'LV', LT: 'LT', PL: 'PL',
+  TH: 'TH', JP: 'JP', ID: 'ID', FI: 'FI',
+  RO: 'RO', HU: 'HU', CZ: 'CZ', TR: 'TR',
+  NO: 'NO', SE: 'SE',
 };
 
 function extractCountryCode(feature) {

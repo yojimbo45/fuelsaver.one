@@ -32,9 +32,11 @@ function parseStation(s) {
   if (isNaN(lat) || isNaN(lng)) return null;
 
   const prices = {};
-  if (s.price_n_r != null && s.price_n_r > 0) prices.regular = { price: s.price_n_r };
-  if (s.price_n_h != null && s.price_n_h > 0) prices.premium = { price: s.price_n_h };
-  if (s.price_n_k != null && s.price_n_k > 0) prices.diesel = { price: s.price_n_k };
+  if (s.price_n_r != null && s.price_n_r > 0) prices.regular = parseFloat(s.price_n_r);
+  if (s.price_n_h != null && s.price_n_h > 0) prices.premium = parseFloat(s.price_n_h);
+  if (s.price_n_k != null && s.price_n_k > 0) prices.diesel = parseFloat(s.price_n_k);
+
+  if (Object.keys(prices).length === 0) return null;
 
   return {
     id: `JP-${s.ss_id}`,
@@ -59,7 +61,7 @@ export async function handleQuery(url, env) {
   const cacheKey = `cache:${COUNTRY}:${grid.lat}:${grid.lng}`;
 
   let stations = await getGridCache(cacheKey, env);
-  if (!stations) {
+  if (!stations || !stations.length) {
     // Build bounding box around grid cell (~11km per 0.1°)
     const delta = 0.08;
     const params = new URLSearchParams({
@@ -75,16 +77,23 @@ export async function handleQuery(url, env) {
       limit: '100',
     });
 
-    const res = await fetch(`${API_BASE}?${params}`);
+    const res = await fetch(`${API_BASE}?${params}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        Accept: 'application/json, text/plain, */*',
+        'Accept-Language': 'ja,en;q=0.9',
+        Referer: 'https://gogo.gs/',
+      },
+    });
     if (!res.ok) {
       return json({ error: `gogo.gs API returned ${res.status}` }, 502);
     }
 
     const data = await res.json();
-    const list = data?.shop || data?.shops || [];
+    const list = data?.Result || [];
 
     stations = list.map(parseStation).filter(Boolean);
-    await putGridCache(cacheKey, stations, env, 600);
+    if (stations.length) await putGridCache(cacheKey, stations, env, 600);
   }
 
   const filtered = filterByDistance(stations, lat, lng, radiusKm);

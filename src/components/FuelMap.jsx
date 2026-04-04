@@ -5,41 +5,7 @@ import { formatPrice, formatUpdated } from '../utils/format';
 import { COUNTRIES } from '../services/countries';
 import { getBrandLogoUrl } from '../utils/brandLogo';
 import { getFuelColor } from '../utils/fuelColors';
-
-function getMapStyle() {
-  const token = import.meta.env.VITE_MAPBOX_TOKEN;
-  if (token) {
-    // MapLibre can't resolve mapbox:// protocol, so use Mapbox raster tiles directly
-    return {
-      version: 8,
-      sources: {
-        'mapbox-streets': {
-          type: 'raster',
-          tiles: [
-            `https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${token}`,
-          ],
-          tileSize: 512,
-          attribution: '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        },
-      },
-      layers: [{ id: 'mapbox-streets', type: 'raster', source: 'mapbox-streets' }],
-      glyphs: `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=${token}`,
-    };
-  }
-  // Fallback to OSM raster tiles
-  return {
-    version: 8,
-    sources: {
-      osm: {
-        type: 'raster',
-        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-        tileSize: 256,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      },
-    },
-    layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
-  };
-}
+import { getMapStyle } from '../utils/mapStyle';
 
 export default function FuelMap({
   center,
@@ -54,6 +20,7 @@ export default function FuelMap({
   hoveredStation,
   onLocate,
   onMapMove,
+  labelStyle,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -259,7 +226,7 @@ export default function FuelMap({
   // Fly to search location (only for SearchBar/geolocate searches, not map-move)
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !searchCenter) return;
+    if (!map || !searchCenter || searchCenter.skipFly) return;
 
     // Clear last search area so the new location gets a fresh search on moveend
     lastSearchRef.current = null;
@@ -464,24 +431,36 @@ export default function FuelMap({
       </div>`;
     };
 
-    // Generate pill-shaped card images for zoom >= 12 (logo + price in white rounded rect)
+    // Generate marker images for zoom >= 12
     const ratio = 3; // 3x for crisp retina rendering
+    const isPin = labelStyle === 'pin';
+    const fontSize = 13 * ratio;
+    const font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+
+    // Measure text
+    const measureCanvas = document.createElement('canvas');
+    const measureCtx = measureCanvas.getContext('2d');
+    measureCtx.font = font;
+
+    const pendingLogos = new Map();
+    const totalStations = features.length;
+
+    // Classic pill dimensions
     const pillH = 32 * ratio;
     const logoSize = 24 * ratio;
     const padX = 6 * ratio;
-    const padY = 4 * ratio;
     const gap = 4 * ratio;
-    const fontSize = 13 * ratio;
-    const radius = pillH / 2;
+    const pillRadius = pillH / 2;
+    const arrowH = 6 * ratio; // pointer triangle height
 
-    // Measure text to compute pill width
-    const measureCanvas = document.createElement('canvas');
-    const measureCtx = measureCanvas.getContext('2d');
-    measureCtx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-
-    const pendingLogos = new Map(); // logoUrl -> [entries]
-
-    const totalStations = features.length;
+    // Pin dimensions
+    const pinLogoSize = 40 * ratio;
+    const pinBorder = 3 * ratio;
+    const pinRibbonPadX = 8 * ratio;
+    const pinRibbonPadY = 3 * ratio;
+    const pinRibbonRadius = 4 * ratio;
+    const pinArrowH = 8 * ratio;
+    const pinGap = -3 * ratio; // overlap ribbon onto logo slightly
 
     for (const f of features) {
       const { price, logoUrl, stationId, rank } = f.properties;
@@ -489,73 +468,172 @@ export default function FuelMap({
       f.properties.pillId = pillId;
       map._pillIds.push(pillId);
 
-      // Text color: green for #1, red for last, black for the rest
       const rankNum = parseInt(rank, 10);
       let textColor = '#1f2937';
-      if (rankNum === 1) textColor = '#16a34a';
-      else if (rankNum === totalStations) textColor = '#dc2626';
+      let accentColor = '#f97316';
+      if (rankNum === 1) { textColor = '#16a34a'; accentColor = '#16a34a'; }
+      else if (rankNum === totalStations) { textColor = '#dc2626'; accentColor = '#dc2626'; }
 
       const textW = measureCtx.measureText(price).width;
       const hasLogo = !!logoUrl;
-      const pillW = padX + (hasLogo ? logoSize + gap : 0) + textW + padX;
 
-      // Draw pill
-      const drawPill = (logoImg) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.ceil(pillW);
-        canvas.height = pillH;
-        const ctx = canvas.getContext('2d');
+      const drawMarker = (logoImg) => {
+        let canvas, ctx;
 
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
+        if (isPin) {
+          // --- PIN STYLE: logo circle on top, ribbon below, arrow ---
+          const ribbonW = pinRibbonPadX + textW + pinRibbonPadX;
+          const totalW = Math.max(pinLogoSize + pinBorder * 2, ribbonW);
+          const totalH = pinLogoSize + pinBorder * 2 + pinGap + pinRibbonPadY * 2 + fontSize + pinArrowH;
 
-        // White rounded rect background
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.moveTo(radius, 0);
-        ctx.lineTo(pillW - radius, 0);
-        ctx.arc(pillW - radius, radius, radius, -Math.PI / 2, Math.PI / 2);
-        ctx.lineTo(radius, pillH);
-        ctx.arc(radius, radius, radius, Math.PI / 2, -Math.PI / 2);
-        ctx.closePath();
-        ctx.fill();
+          canvas = document.createElement('canvas');
+          canvas.width = Math.ceil(totalW);
+          canvas.height = Math.ceil(totalH);
+          ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
 
-        // Light border
-        ctx.strokeStyle = '#e5e7eb';
-        ctx.lineWidth = 1.5 * ratio;
-        ctx.stroke();
+          const cx = totalW / 2;
+          const logoR = pinLogoSize / 2;
+          const logoOuterR = logoR + pinBorder;
+          const logoCY = logoOuterR;
 
-        let textX = padX;
-
-        // Logo (circular, aspect-ratio preserved)
-        if (logoImg) {
-          const lx = padX;
-          const ly = (pillH - logoSize) / 2;
-          ctx.save();
+          // Logo circle border
+          ctx.fillStyle = accentColor;
           ctx.beginPath();
-          ctx.arc(lx + logoSize / 2, ly + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
-          ctx.clip();
-          // Fill circle with white background first
-          ctx.fillStyle = '#ffffff';
+          ctx.arc(cx, logoCY, logoOuterR, 0, Math.PI * 2);
           ctx.fill();
-          // Scale image to fit inside the circle, preserving aspect ratio
-          const iw = logoImg.naturalWidth || logoImg.width;
-          const ih = logoImg.naturalHeight || logoImg.height;
-          const scale = Math.min(logoSize / iw, logoSize / ih);
-          const sw = iw * scale;
-          const sh = ih * scale;
-          const sx = lx + (logoSize - sw) / 2;
-          const sy = ly + (logoSize - sh) / 2;
-          ctx.drawImage(logoImg, sx, sy, sw, sh);
-          ctx.restore();
-          textX = padX + logoSize + gap;
-        }
 
-        // Price text
-        ctx.fillStyle = textColor;
-        ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-        ctx.textBaseline = 'middle';
-        ctx.fillText(price, textX, pillH / 2);
+          // Logo circle white fill
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(cx, logoCY, logoR, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Logo image
+          if (logoImg) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, logoCY, logoR * 0.85, 0, Math.PI * 2);
+            ctx.clip();
+            const iw = logoImg.naturalWidth || logoImg.width;
+            const ih = logoImg.naturalHeight || logoImg.height;
+            const s = Math.min((logoR * 1.7) / iw, (logoR * 1.7) / ih);
+            const sw = iw * s, sh = ih * s;
+            ctx.drawImage(logoImg, cx - sw / 2, logoCY - sh / 2, sw, sh);
+            ctx.restore();
+          } else {
+            // Fallback letter
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = `bold ${pinLogoSize * 0.4}px -apple-system, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(f.properties.brand.charAt(0), cx, logoCY);
+          }
+
+          // Ribbon background
+          const ribbonY = logoCY + logoOuterR + pinGap;
+          const ribbonH = pinRibbonPadY * 2 + fontSize;
+          const ribbonX = (totalW - ribbonW) / 2;
+          ctx.fillStyle = accentColor;
+          ctx.beginPath();
+          ctx.moveTo(ribbonX + pinRibbonRadius, ribbonY);
+          ctx.lineTo(ribbonX + ribbonW - pinRibbonRadius, ribbonY);
+          ctx.arc(ribbonX + ribbonW - pinRibbonRadius, ribbonY + pinRibbonRadius, pinRibbonRadius, -Math.PI / 2, 0);
+          ctx.lineTo(ribbonX + ribbonW, ribbonY + ribbonH - pinRibbonRadius);
+          ctx.arc(ribbonX + ribbonW - pinRibbonRadius, ribbonY + ribbonH - pinRibbonRadius, pinRibbonRadius, 0, Math.PI / 2);
+          ctx.lineTo(ribbonX + pinRibbonRadius, ribbonY + ribbonH);
+          ctx.arc(ribbonX + pinRibbonRadius, ribbonY + ribbonH - pinRibbonRadius, pinRibbonRadius, Math.PI / 2, Math.PI);
+          ctx.lineTo(ribbonX, ribbonY + pinRibbonRadius);
+          ctx.arc(ribbonX + pinRibbonRadius, ribbonY + pinRibbonRadius, pinRibbonRadius, Math.PI, -Math.PI / 2);
+          ctx.closePath();
+          ctx.fill();
+
+          // Ribbon text
+          ctx.fillStyle = '#ffffff';
+          ctx.font = font;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(price, cx, ribbonY + ribbonH / 2);
+
+          // Arrow
+          const arrowY = ribbonY + ribbonH;
+          ctx.fillStyle = accentColor;
+          ctx.beginPath();
+          ctx.moveTo(cx - 6 * ratio, arrowY);
+          ctx.lineTo(cx + 6 * ratio, arrowY);
+          ctx.lineTo(cx, arrowY + pinArrowH);
+          ctx.closePath();
+          ctx.fill();
+
+        } else {
+          // --- CLASSIC PILL + pointer ---
+          const pillW = padX + (hasLogo ? logoSize + gap : 0) + textW + padX;
+          const totalH = pillH + arrowH;
+
+          canvas = document.createElement('canvas');
+          canvas.width = Math.ceil(pillW);
+          canvas.height = Math.ceil(totalH);
+          ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+
+          // White rounded rect
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(pillRadius, 0);
+          ctx.lineTo(pillW - pillRadius, 0);
+          ctx.arc(pillW - pillRadius, pillRadius, pillRadius, -Math.PI / 2, Math.PI / 2);
+          ctx.lineTo(pillRadius, pillH);
+          ctx.arc(pillRadius, pillRadius, pillRadius, Math.PI / 2, -Math.PI / 2);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.strokeStyle = '#e5e7eb';
+          ctx.lineWidth = 1.5 * ratio;
+          ctx.stroke();
+
+          // Pointer triangle
+          const midX = pillW / 2;
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.moveTo(midX - 5 * ratio, pillH - 1 * ratio);
+          ctx.lineTo(midX + 5 * ratio, pillH - 1 * ratio);
+          ctx.lineTo(midX, pillH + arrowH);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#e5e7eb';
+          ctx.lineWidth = 1.5 * ratio;
+          ctx.stroke();
+          // Cover the border line between pill and arrow
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(midX - 5 * ratio + 1, pillH - 2 * ratio, 10 * ratio - 2, 3 * ratio);
+
+          let textX = padX;
+
+          if (logoImg) {
+            const lx = padX;
+            const ly = (pillH - logoSize) / 2;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(lx + logoSize / 2, ly + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            const iw = logoImg.naturalWidth || logoImg.width;
+            const ih = logoImg.naturalHeight || logoImg.height;
+            const scale = Math.min(logoSize / iw, logoSize / ih);
+            const sw = iw * scale, sh = ih * scale;
+            ctx.drawImage(logoImg, lx + (logoSize - sw) / 2, ly + (logoSize - sh) / 2, sw, sh);
+            ctx.restore();
+            textX = padX + logoSize + gap;
+          }
+
+          ctx.fillStyle = textColor;
+          ctx.font = font;
+          ctx.textBaseline = 'middle';
+          ctx.fillText(price, textX, pillH / 2);
+        }
 
         if (!map.hasImage(pillId)) {
           map.addImage(pillId, { width: canvas.width, height: canvas.height, data: ctx.getImageData(0, 0, canvas.width, canvas.height).data }, { pixelRatio: ratio });
@@ -563,14 +641,11 @@ export default function FuelMap({
       };
 
       if (hasLogo) {
-        // Load logo async, draw pill on load
         if (!pendingLogos.has(logoUrl)) pendingLogos.set(logoUrl, []);
-        pendingLogos.get(logoUrl).push({ drawPill, pillId });
-
-        // Also draw a text-only pill immediately as fallback
-        drawPill(null);
+        pendingLogos.get(logoUrl).push({ drawPill: drawMarker, pillId });
+        drawMarker(null);
       } else {
-        drawPill(null);
+        drawMarker(null);
       }
     }
 
@@ -598,129 +673,36 @@ export default function FuelMap({
       map.addSource('stations', {
         type: 'geojson',
         data: geojson,
-        cluster: true,
-        clusterMaxZoom: 10,
-        clusterRadius: 50,
       });
 
-      // Cluster circle layer
-      map.addLayer({
-        id: 'clusters',
-        type: 'circle',
-        source: 'stations',
-        filter: ['has', 'point_count'],
-        paint: {
-          'circle-color': '#f97316',
-          'circle-radius': ['step', ['get', 'point_count'], 18, 5, 24, 20, 32],
-          'circle-stroke-width': 3,
-          'circle-stroke-color': '#ffffff',
-        },
-      });
-
-      // Cluster count label
-      map.addLayer({
-        id: 'cluster-count',
-        type: 'symbol',
-        source: 'stations',
-        filter: ['has', 'point_count'],
-        layout: {
-          'text-field': '{point_count_abbreviated}',
-          'text-size': 14,
-          'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-          'text-allow-overlap': true,
-        },
-        paint: {
-          'text-color': '#ffffff',
-        },
-      });
-
-      // Click cluster to zoom in
-      map.on('click', 'clusters', (e) => {
-        const feat = e.features[0];
-        const clusterId = feat.properties.cluster_id;
-        map.getSource('stations').getClusterExpansionZoom(clusterId, (err, z) => {
-          if (err) return;
-          skipMoveRef.current = true;
-          map.easeTo({ center: feat.geometry.coordinates, zoom: z });
-        });
-      });
-      map.on('mouseenter', 'clusters', () => { map.getCanvas().style.cursor = 'pointer'; });
-      map.on('mouseleave', 'clusters', () => { map.getCanvas().style.cursor = ''; });
-
-      // Circle layer for individual (unclustered) station dots — zoom < 13 only
-      map.addLayer({
-        id: 'stations-circle',
-        type: 'circle',
-        source: 'stations',
-        filter: ['!', ['has', 'point_count']],
-        maxzoom: 11,
-        paint: {
-          'circle-radius': 16,
-          'circle-color': ['get', 'color'],
-          'circle-stroke-width': 3,
-          'circle-stroke-color': '#ffffff',
-        },
-      });
-
-      // Symbol layer for fuel pump icon (unclustered only, zoom < 13)
-      map.addLayer({
-        id: 'stations-label',
-        type: 'symbol',
-        source: 'stations',
-        filter: ['!', ['has', 'point_count']],
-        maxzoom: 11,
-        layout: {
-          'icon-image': 'fuel-icon',
-          'icon-size': 0.9,
-          'icon-allow-overlap': true,
-        },
-      });
-
-      // Pill card (zoom >= 13) — colored rounded rect with logo + price
+      // Station markers with logo + price at all zoom levels
       map.addLayer({
         id: 'stations-pill',
         type: 'symbol',
         source: 'stations',
-        filter: ['all', ['!', ['has', 'point_count']], ['!=', ['get', 'pillId'], '']],
-        minzoom: 11,
+        filter: ['!=', ['get', 'pillId'], ''],
         layout: {
           'icon-image': ['get', 'pillId'],
-          'icon-allow-overlap': true,
+          'icon-allow-overlap': ['step', ['zoom'], false, 14, true],
+          'icon-ignore-placement': false,
+          'icon-padding': 0,
           'icon-size': 1,
+          'icon-anchor': 'bottom',
+          'symbol-sort-key': ['to-number', ['get', 'rank']],
         },
       });
 
-      // Pointer cursor on hover (both circle and pill layers)
-      for (const layerId of ['stations-circle', 'stations-pill']) {
-        map.on('mouseenter', layerId, () => {
-          map.getCanvas().style.cursor = 'pointer';
-        });
-        map.on('mouseleave', layerId, () => {
-          map.getCanvas().style.cursor = '';
-          if (hoverPopupRef.current) { hoverPopupRef.current.remove(); hoverPopupRef.current = null; }
-        });
-      }
-
-      // Small tooltip on hover
-      map.on('mousemove', 'stations-circle', (e) => {
-        if (!e.features || !e.features.length) return;
-        const f = e.features[0];
-        const coords = f.geometry.coordinates.slice();
-        const { brand, price } = f.properties;
-
-        if (hoverPopupRef.current) hoverPopupRef.current.remove();
-        hoverPopupRef.current = new maplibregl.Popup({
-          offset: 20,
-          closeButton: false,
-          closeOnClick: false,
-        })
-          .setLngLat(coords)
-          .setHTML(`<div class="map-popup"><strong>${brand}</strong> &mdash; ${price}</div>`)
-          .addTo(map);
+      // Pointer cursor on hover
+      map.on('mouseenter', 'stations-pill', () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+      map.on('mouseleave', 'stations-pill', () => {
+        map.getCanvas().style.cursor = '';
+        if (hoverPopupRef.current) { hoverPopupRef.current.remove(); hoverPopupRef.current = null; }
       });
 
-      // Detailed popup on click (both circle and pill layers)
-      const handleStationClick = (e) => {
+      // Detailed popup on click
+      map.on('click', 'stations-pill', (e) => {
         if (!e.features || !e.features.length) return;
         const f = e.features[0];
         const coords = f.geometry.coordinates.slice();
@@ -737,11 +719,9 @@ export default function FuelMap({
           .setLngLat(coords)
           .setHTML(detailBuilderRef.current(f.properties))
           .addTo(map);
-      };
-      map.on('click', 'stations-circle', handleStationClick);
-      map.on('click', 'stations-pill', handleStationClick);
+      });
     }
-  }, [stations, fuelType, currency, decimals, countryCode]);
+  }, [stations, fuelType, currency, decimals, countryCode, labelStyle]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -767,7 +747,7 @@ export default function FuelMap({
           id: 'station-halo',
           type: 'circle',
           source: 'stations',
-          filter: ['!', ['has', 'point_count']],
+          filter: ['has', 'stationId'],
           paint: {
             'circle-radius': 26,
             'circle-color': '#f97316',
@@ -775,7 +755,7 @@ export default function FuelMap({
             'circle-stroke-width': 0,
           },
         },
-        'stations-circle' // insert below station circles
+        'stations-pill' // insert below station markers
       );
     }
 

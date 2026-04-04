@@ -7,7 +7,7 @@ const FUEL_COLORS = {
   unleaded: '#86efac', RON95: '#86efac', B027: '#86efac', '91': '#86efac',
   nafta_super: '#86efac', gasolina: '#86efac', benzina: '#86efac', E95: '#86efac',
   unleaded_95: '#86efac', SUP: '#86efac', eurosuper95: '#86efac', eurosuper100: '#2d6a4f', gasolina_95: '#86efac',
-  petrol: '#86efac',
+  petrol: '#86efac', gasoline_95: '#86efac',
   // Premium gasoline — dark green
   SP98: '#2d6a4f', gasolina98: '#2d6a4f', gasolina97: '#2d6a4f', E98: '#2d6a4f',
   super_unleaded: '#2d6a4f', PULP95: '#2d6a4f', PULP98: '#2d6a4f',

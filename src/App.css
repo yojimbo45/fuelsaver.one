@@ -66,7 +66,7 @@
   flex-direction: column;
   border-right: 1px solid var(--gray-200);
   background: #fff;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 /* ── Search Bar ─────────────────────────── */
@@ -534,8 +534,14 @@
 }
 
 /* ── Map ────────────────────────────────── */
-.map-container {
+.map-wrapper {
   flex: 1;
+  position: relative;
+}
+
+.map-container {
+  width: 100%;
+  height: 100%;
   position: relative;
 }
 
@@ -766,7 +772,7 @@
     border-right: none;
     border-top: 1px solid var(--gray-200);
   }
-  .map-container {
+  .map-wrapper {
     min-height: 50vh;
   }
 }
@@ -810,5 +816,977 @@
   }
   .station-price {
     font-size: 16px;
+  }
+}
+
+/* ── Header Navigation ──────────────────── */
+.header-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.header-nav-link {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  transition: background 0.15s, color 0.15s;
+}
+
+.header-nav-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.header-nav-link.active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Trip Calculator ────────────────────── */
+.trip-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.trip-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--gray-800);
+  margin: 0;
+}
+
+.trip-inputs {
+  display: flex;
+  flex-direction: column;
+}
+
+.trip-place-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trip-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--gray-300);
+}
+
+.trip-dot-origin {
+  background: #16a34a;
+  box-shadow: 0 0 0 1px #16a34a;
+}
+
+.trip-dot-destination {
+  background: #dc2626;
+  box-shadow: 0 0 0 1px #dc2626;
+}
+
+.trip-dot-waypoint {
+  background: var(--orange-500);
+  box-shadow: 0 0 0 1px var(--orange-500);
+}
+
+.trip-connector {
+  width: 2px;
+  height: 20px;
+  margin-left: 5px;
+  border-left: 2px dashed var(--gray-300);
+}
+
+.trip-place-input-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.trip-place-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius);
+  font-size: 14px;
+  color: var(--gray-800);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.trip-place-input:focus {
+  border-color: var(--orange-500);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+.trip-place-input-wrapper .autocomplete-list {
+  top: calc(100% + 2px);
+  width: 100%;
+}
+
+.trip-remove-stop {
+  background: none;
+  border: none;
+  color: var(--gray-400);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  border-radius: var(--radius);
+  flex-shrink: 0;
+}
+
+.trip-remove-stop:hover {
+  color: #dc2626;
+  background: var(--gray-100);
+}
+
+/* Actions row */
+.trip-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.trip-add-stop {
+  background: none;
+  border: none;
+  color: var(--orange-600);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.trip-add-stop:hover {
+  color: var(--orange-700);
+}
+
+.trip-invert-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid var(--gray-300);
+  color: var(--gray-600);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: var(--radius);
+}
+
+.trip-invert-btn:hover {
+  background: var(--gray-100);
+  color: var(--gray-800);
+}
+
+/* Find your car link */
+.trip-find-car {
+  background: none;
+  border: none;
+  color: var(--gray-500);
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  margin-top: -8px;
+}
+
+.trip-find-car:hover {
+  color: var(--orange-600);
+}
+
+.trip-car-selected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: -8px;
+}
+
+.trip-car-selected-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--orange-600);
+}
+
+.trip-car-clear {
+  background: none;
+  border: none;
+  color: var(--gray-400);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 50%;
+}
+
+.trip-car-clear:hover {
+  color: #dc2626;
+  background: var(--gray-100);
+}
+
+.trip-vehicle-settings.disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Vehicle panel */
+.vehicle-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.vehicle-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--orange-600);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+}
+
+.vehicle-back-btn:hover {
+  background: var(--orange-50);
+}
+
+/* Vehicle search */
+.vehicle-search {
+  position: relative;
+}
+
+.vehicle-search .autocomplete-list {
+  top: calc(100% + 2px);
+  width: 100%;
+}
+
+.vehicle-search .autocomplete-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.vehicle-suggestion-name {
+  font-weight: 500;
+}
+
+.vehicle-suggestion-meta {
+  font-size: 12px;
+  color: var(--gray-400);
+}
+
+.vehicle-search-spinner {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--gray-300);
+  border-top-color: var(--orange-500);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* Vehicle settings */
+.trip-vehicle-settings {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.trip-consumption-group,
+.trip-tank-group,
+.trip-fuel-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.trip-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.trip-consumption-input {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.trip-consumption-input button {
+  background: var(--gray-100);
+  border: none;
+  color: var(--gray-600);
+  padding: 8px 10px;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.trip-consumption-input button:hover {
+  background: var(--gray-200);
+}
+
+.trip-consumption-input input {
+  width: 48px;
+  border: none;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-800);
+  padding: 8px 0;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.trip-consumption-input input::-webkit-outer-spin-button,
+.trip-consumption-input input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+.trip-consumption-unit {
+  font-size: 11px;
+  color: var(--gray-500);
+  padding-right: 6px;
+  white-space: nowrap;
+}
+
+.trip-fuel-select {
+  padding: 8px 12px;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius);
+  font-size: 14px;
+  color: var(--gray-800);
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+}
+
+.trip-fuel-select:focus {
+  border-color: var(--orange-500);
+}
+
+.trip-search-btn {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.trip-error {
+  color: #dc2626;
+  font-size: 13px;
+  margin: 0;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border-radius: var(--radius);
+  border: 1px solid #fecaca;
+}
+
+/* Route tabs */
+.trip-route-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.trip-route-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 8px;
+  border: 2px solid var(--gray-200);
+  border-radius: var(--radius);
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.trip-route-tab:hover {
+  border-color: var(--gray-300);
+  background: var(--gray-50);
+}
+
+.trip-route-tab.active {
+  border-color: var(--orange-500);
+  background: var(--orange-50);
+}
+
+.trip-route-tab-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.trip-route-tab-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gray-800);
+}
+
+.trip-route-tab-meta {
+  font-size: 11px;
+  color: var(--gray-500);
+}
+
+.trip-route-tab.active .trip-route-tab-label {
+  color: var(--orange-600);
+}
+
+/* Trip Results */
+.trip-results {
+  background: var(--orange-50);
+  border: 1px solid var(--orange-200);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.trip-results-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gray-800);
+  margin: 0 0 12px;
+}
+
+.trip-result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.trip-result-row + .trip-result-row {
+  border-top: 1px solid var(--orange-200);
+}
+
+.trip-result-label {
+  font-size: 13px;
+  color: var(--gray-600);
+}
+
+.trip-result-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.trip-result-total {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 2px solid var(--orange-300) !important;
+}
+
+.trip-result-total .trip-result-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-800);
+}
+
+.trip-result-total .trip-result-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--orange-600);
+}
+
+.trip-savings-banner {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--orange-50);
+  border: 1px solid var(--orange-200);
+  border-radius: var(--radius);
+}
+
+.trip-savings-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--orange-500);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.trip-savings-text {
+  flex: 1;
+}
+
+.trip-savings-amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--green-700);
+}
+
+.trip-savings-detail {
+  font-size: 12px;
+  color: var(--gray-500);
+  margin-top: 2px;
+}
+
+.trip-savings-cheap {
+  color: var(--green-700);
+  font-weight: 600;
+}
+
+.trip-savings-expensive {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.trip-results-disclaimer {
+  font-size: 11px;
+  color: var(--gray-400);
+  margin: 10px 0 0;
+  text-align: center;
+}
+
+/* Recommended Stations */
+.trip-results-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.trip-stations {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trip-stations-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gray-800);
+  margin: 0;
+}
+
+.trip-stations-loading {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--orange-500);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.trip-stations-empty {
+  font-size: 13px;
+  color: var(--gray-400);
+  margin: 0;
+  text-align: center;
+  padding: 12px;
+}
+
+.trip-station-card {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  padding: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+}
+
+.trip-station-card:hover {
+  background: var(--gray-50);
+  border-color: var(--gray-300);
+}
+
+.trip-station-best {
+  border-color: #16a34a;
+  background: #f0fdf4;
+}
+
+.trip-station-best:hover {
+  background: #dcfce7;
+  border-color: #16a34a;
+}
+
+.trip-station-badge {
+  position: absolute;
+  top: -8px;
+  right: 12px;
+  background: #16a34a;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.trip-station-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trip-station-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: var(--gray-100);
+  flex-shrink: 0;
+}
+
+.trip-station-logo-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--gray-200);
+  color: var(--gray-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.trip-station-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.trip-station-brand {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.trip-station-address {
+  font-size: 12px;
+  color: var(--gray-500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trip-station-price {
+  font-size: 16px;
+  font-weight: 800;
+  color: #16a34a;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.trip-station-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--gray-400);
+}
+
+/* Map pin markers */
+.trip-pin-marker {
+  cursor: pointer;
+}
+
+.trip-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
+}
+
+.trip-pin-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid #f97316;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.trip-pin-logo img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.trip-pin-logo-fallback {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--gray-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.trip-pin-ribbon {
+  margin-top: -4px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.3;
+  z-index: 0;
+}
+
+.trip-pin-arrow {
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 8px solid #f97316;
+}
+
+/* All stations list */
+.trip-all-stations {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.trip-all-stations .trip-station-card {
+  padding: 10px;
+}
+
+.trip-all-stations .trip-station-logo,
+.trip-all-stations .trip-station-logo-placeholder {
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
+}
+
+.trip-all-stations .trip-station-brand {
+  font-size: 13px;
+}
+
+.trip-all-stations .trip-station-price {
+  font-size: 14px;
+}
+
+/* ── Label Style Toggle ─────────────────── */
+.label-toggle {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+}
+
+.label-toggle-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  border: none;
+  background: #fff;
+  color: var(--gray-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+}
+
+.label-toggle-btn:hover {
+  background: var(--gray-50);
+  color: var(--gray-800);
+}
+
+.label-toggle-menu {
+  position: absolute;
+  top: 38px;
+  left: 0;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 8px;
+  min-width: 150px;
+}
+
+.label-toggle-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gray-400);
+  padding: 4px 8px;
+}
+
+.label-toggle-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-700);
+}
+
+.label-toggle-option:hover {
+  background: var(--gray-100);
+}
+
+.label-toggle-option.active {
+  background: var(--orange-50);
+  color: var(--orange-600);
+  font-weight: 600;
+}
+
+/* Mini previews in toggle */
+.label-toggle-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.label-toggle-preview-classic {
+  gap: 0;
+}
+
+.label-toggle-preview-classic .ltp-pill {
+  font-size: 9px;
+  font-weight: 700;
+  background: #fff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 2px 6px;
+  color: var(--gray-700);
+  line-height: 1.2;
+}
+
+.label-toggle-preview-classic .ltp-arrow {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid #e5e7eb;
+}
+
+.label-toggle-preview-pin {
+  gap: 0;
+}
+
+.label-toggle-preview-pin .ltp-circle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--orange-500);
+  background: #fff;
+}
+
+.label-toggle-preview-pin .ltp-ribbon {
+  font-size: 8px;
+  font-weight: 700;
+  background: var(--orange-500);
+  color: #fff;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-top: -2px;
+  line-height: 1.3;
+}
+
+.label-toggle-preview-pin .ltp-arrow {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid var(--orange-500);
+}
+
+/* ── Classic trip markers (DOM) ─────────── */
+.trip-classic-marker {
+  cursor: pointer;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.trip-classic {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #fff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 4px 10px 4px 4px;
+  white-space: nowrap;
+}
+
+.trip-classic-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: contain;
+}
+
+.trip-classic-price {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.trip-classic-arrow {
+  width: 0;
+  height: 0;
+  margin: 0 auto;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid #fff;
+  filter: drop-shadow(0 1px 0 #e5e7eb);
+}
+
+/* Responsive: Trip */
+@media (max-width: 480px) {
+  .trip-sidebar {
+    padding: 14px;
+    gap: 12px;
+  }
+  .trip-vehicle-settings {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .header-nav-link {
+    font-size: 12px;
+    padding: 5px 10px;
   }
 }

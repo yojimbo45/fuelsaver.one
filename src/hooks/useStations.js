@@ -31,9 +31,7 @@ export function useStations() {
         throw new Error('Could not determine country for this location. Please try a more specific search.');
       }
 
-      if (!skipFly) {
-        setSearchCenter({ lat: centerLat, lng: centerLng });
-      }
+      setSearchCenter({ lat: centerLat, lng: centerLng, skipFly: !!skipFly });
 
       const results = await fetchStations(detectedCountry, centerLat, centerLng, radiusKm, fuelType);
       setStations(results);
@@ -43,7 +41,8 @@ export function useStations() {
       }
     } catch (err) {
       console.error('Search error:', err);
-      setError(err.message);
+      const isTimeout = err.name === 'AbortError' || err.name === 'TimeoutError' || err.message?.includes('aborted');
+      setError(isTimeout ? 'Request timed out. Please try again.' : err.message);
       setStations([]);
     } finally {
       setLoading(false);

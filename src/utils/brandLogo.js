@@ -155,6 +155,23 @@ const BRAND_DOMAINS = {
   go: 'goireland.ie',
   top: 'topaz.ie',
 
+  // Norway
+  'uno-x': 'unox.no',
+  'uno x': 'unox.no',
+  yx: 'yx.no',
+  best: 'best.no',
+  'automat 1': 'automat1.no',
+  'bunker oil': 'bunkeroil.no',
+
+  // Sweden
+  okq8: 'okq8.se',
+  preem: 'preem.se',
+  st1: 'st1.se',
+  tanka: 'tanka.se',
+  ingo: 'ingo.se',
+  qstar: 'qstar.se',
+  'q-star': 'qstar.se',
+
   // Baltic States
   alexela: 'alexela.ee',
   terminal: 'terminaloil.ee',
@@ -213,10 +230,24 @@ const BRAND_DOMAINS = {
   woolworths: 'woolworths.com.au',
   ampol: 'ampol.com.au',
 
+  // UAE
+  adnoc: 'adnoc.ae',
+  enoc: 'enoc.com',
+  eppco: 'eppco.ae',
+  emarat: 'emarat.ae',
+
   // Mexico
   pemex: 'pemex.com',
   'oxxo gas': 'oxxo.com',
+  oxxo: 'oxxo.com',
   g500: 'g500.mx',
+  arco: 'arco.com',
+  chevron: 'chevron.com',
+  hidrosina: 'hidrosina.com.mx',
+  rendichicas: 'rendichicas.com.mx',
+  valero: 'valero.com',
+  marathon: 'marathonpetroleum.com',
+  '76': '76.com',
 
   // Brazil
   petrobras: 'petrobras.com.br',
@@ -233,6 +264,14 @@ const BRAND_DOMAINS = {
   dapsa: 'dapsa.com.ar',
   refinor: 'refinor.com.ar',
   voy: 'voyconenergia.com',
+
+  // Turkey
+  'petrol ofisi': 'petrolofisi.com.tr',
+  opet: 'opet.com.tr',
+  aytemiz: 'aytemiz.com.tr',
+  tp: 'tppetrol.com.tr',
+  alpet: 'alpet.com.tr',
+  kadoil: 'kadoil.com.tr',
 };
 
 // Direct logo URLs for brands where the domain-based proxy doesn't work well

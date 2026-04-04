@@ -17,6 +17,7 @@ export async function queryOverpass(lat, lng, radiusM) {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `data=${encodeURIComponent(query)}`,
+        signal: AbortSignal.timeout(12000),
       });
       if (!res.ok) continue;
       const data = await res.json();
