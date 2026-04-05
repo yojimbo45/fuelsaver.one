@@ -188,7 +188,6 @@ export async function handleQuery(url, env) {
   const lat = parseFloat(url.searchParams.get('lat'));
   const lng = parseFloat(url.searchParams.get('lng'));
   const radiusKm = parseFloat(url.searchParams.get('radius') || '15');
-
   const allStations = await getStations(COUNTRY, env);
   if (!allStations) return json({ error: 'Data not yet cached, try again later' }, 503);
 

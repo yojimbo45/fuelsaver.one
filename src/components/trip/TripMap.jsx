@@ -22,10 +22,13 @@ export default function TripMap({ route, origin, destination, waypoints, recomme
       center: [2.3522, 48.8566],
       zoom: 5,
       attributionControl: false,
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
     });
 
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
-    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
     map.on('load', () => {
       // Route
@@ -60,7 +63,7 @@ export default function TripMap({ route, origin, destination, waypoints, recomme
         filter: ['!=', ['get', 'pillId'], ''],
         layout: {
           'icon-image': ['get', 'pillId'],
-          'icon-allow-overlap': ['step', ['zoom'], false, 14, true],
+          'icon-allow-overlap': ['step', ['zoom'], false, 13, true],
           'icon-ignore-placement': false,
           'icon-padding': 0,
           'icon-size': 1,

@@ -6,6 +6,7 @@ import { COUNTRIES } from '../services/countries';
 import { getBrandLogoUrl } from '../utils/brandLogo';
 import { getFuelColor } from '../utils/fuelColors';
 import { getMapStyle } from '../utils/mapStyle';
+import { updateUrlParams } from '../utils/url';
 
 export default function FuelMap({
   center,
@@ -48,10 +49,13 @@ export default function FuelMap({
       center: center,
       zoom: initialZoom,
       attributionControl: false,
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
     });
 
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
-    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
     // Geolocate button
     const geolocate = new maplibregl.GeolocateControl({
@@ -73,16 +77,16 @@ export default function FuelMap({
     refreshBtn.title = 'Refresh stations in this area';
     refreshBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
     refreshBtn.addEventListener('click', () => {
-      if (map.getZoom() < 9) return;
       const c = map.getCenter();
       const bounds = map.getBounds();
-      const radiusKm = haversineDistance(
+      const viewportRadius = haversineDistance(
         c.lat, c.lng,
         bounds.getNorth(), bounds.getEast()
       );
+      const radiusKm = viewportRadius * 1.2;
       // Clear cached search area so future auto-searches aren't skipped
       lastSearchRef.current = null;
-      onMapMoveRef.current?.({ lat: c.lat, lng: c.lng, radiusKm: Math.min(radiusKm, 50) });
+      onMapMoveRef.current?.({ lat: c.lat, lng: c.lng, radiusKm });
     });
     const refreshContainer = document.createElement('div');
     refreshContainer.className = 'maplibregl-ctrl maplibregl-ctrl-group';
@@ -92,29 +96,29 @@ export default function FuelMap({
     // Auto-search when user pans or zooms the map
     map.on('moveend', () => {
       // Always sync zoom + detected country to URL
-      const params = new URLSearchParams(window.location.search);
-      params.set('zoom', Math.round(map.getZoom()));
       const c = map.getCenter();
       const detected = detectCountryFromCoords(c.lat, c.lng);
+      const urlUpdates = { zoom: Math.round(map.getZoom()) };
       if (detected && COUNTRIES[detected]) {
-        params.set('country', detected);
-        params.set('lat', c.lat.toFixed(4));
-        params.set('lng', c.lng.toFixed(4));
+        urlUpdates.country = detected;
+        urlUpdates.lat = c.lat.toFixed(4);
+        urlUpdates.lng = c.lng.toFixed(4);
       }
-      window.history.replaceState(null, '', `?${params.toString()}`);
+      updateUrlParams(urlUpdates);
 
       if (skipMoveRef.current) {
         skipMoveRef.current = false;
         return;
       }
-      // Only search when zoomed in enough (zoom >= 9 ≈ city level)
-      if (map.getZoom() < 9) return;
 
       const bounds = map.getBounds();
       const last = lastSearchRef.current;
+      const currentZoom = Math.round(map.getZoom());
 
-      // Skip if current viewport is fully inside the last searched area
+      // Skip if current viewport is fully inside the last searched area AND zoom hasn't changed
+      // (zoom changes need a re-search because the spread grid density adapts to viewport size)
       if (last &&
+          currentZoom === last.zoom &&
           bounds.getNorth() <= last.north &&
           bounds.getSouth() >= last.south &&
           bounds.getEast() <= last.east &&
@@ -126,21 +130,22 @@ export default function FuelMap({
       moveDebounceRef.current = setTimeout(() => {
         const c = map.getCenter();
         const b = map.getBounds();
-        // Radius = distance from center to corner of viewport (covers full rectangle)
-        const radiusKm = haversineDistance(
+        const viewportRadius = haversineDistance(
           c.lat, c.lng,
           b.getNorth(), b.getEast()
         );
+        const radiusKm = viewportRadius * 1.2;
 
-        // Store the searched area
+        // Store the searched area + zoom
         lastSearchRef.current = {
           north: b.getNorth(),
           south: b.getSouth(),
           east: b.getEast(),
           west: b.getWest(),
+          zoom: Math.round(map.getZoom()),
         };
 
-        onMapMoveRef.current?.({ lat: c.lat, lng: c.lng, radiusKm: Math.min(radiusKm, 50) });
+        onMapMoveRef.current?.({ lat: c.lat, lng: c.lng, radiusKm });
       }, 800);
     });
 
@@ -205,6 +210,20 @@ export default function FuelMap({
       map.addImage('fuel-icon', { width: size, height: size, data: ctx.getImageData(0, 0, size, size).data }, { pixelRatio: ratio });
 
       mapLoadedRef.current = true;
+
+      // If restoring from a shared URL with zoom, fire a viewport-accurate search
+      // (the SearchBar's initial search uses an approximate radius; this overrides it)
+      if (new URLSearchParams(window.location.search).get('zoom')) {
+        const c = map.getCenter();
+        const b = map.getBounds();
+        const viewportRadius = haversineDistance(c.lat, c.lng, b.getNorth(), b.getEast());
+        lastSearchRef.current = {
+          north: b.getNorth(), south: b.getSouth(),
+          east: b.getEast(), west: b.getWest(),
+          zoom: Math.round(map.getZoom()),
+        };
+        onMapMoveRef.current?.({ lat: c.lat, lng: c.lng, radiusKm: viewportRadius * 1.2 });
+      }
     });
 
     mapRef.current = map;
@@ -683,7 +702,7 @@ export default function FuelMap({
         filter: ['!=', ['get', 'pillId'], ''],
         layout: {
           'icon-image': ['get', 'pillId'],
-          'icon-allow-overlap': ['step', ['zoom'], false, 14, true],
+          'icon-allow-overlap': ['step', ['zoom'], false, 13, true],
           'icon-ignore-placement': false,
           'icon-padding': 0,
           'icon-size': 1,

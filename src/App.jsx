@@ -4,6 +4,7 @@ import { COUNTRIES, DEFAULT_COUNTRY } from './services/countries';
 import { useStations } from './hooks/useStations';
 import { useTripRoute } from './hooks/useTripRoute';
 import { detectCountryFromCoords } from './utils/geo';
+import { navigateTo } from './utils/url';
 import Header from './components/Header';
 import SearchBar from './components/SearchBar';
 import SavingsBanner from './components/SavingsBanner';
@@ -47,12 +48,7 @@ function App() {
   }, []);
 
   const handleNavigate = useCallback((target) => {
-    if (target === 'trip') {
-      // Clear query params when going to trip page
-      window.history.replaceState(null, '', window.location.pathname + '#/trip');
-    } else {
-      window.history.replaceState(null, '', window.location.pathname + '#/');
-    }
+    navigateTo(target === 'trip' ? '#/trip' : '#/');
     setPage(target);
   }, []);
 
@@ -87,13 +83,13 @@ function App() {
     setFuelType(COUNTRIES[code].defaultFuel);
   }, []);
 
-  const handleSearch = useCallback(({ query, radiusKm, fuelType: ft, lat, lng, country: detectedCountry }) => {
+  const handleSearch = useCallback(({ query, radiusKm, fuelType: ft, lat, lng, country: detectedCountry, skipFly }) => {
     setFuelType(ft);
     setSearchQuery(query || '');
     if (detectedCountry) {
       setCountry(detectedCountry);
     }
-    search({ query, country: detectedCountry || country, radiusKm, fuelType: ft, lat, lng });
+    search({ query, country: detectedCountry || country, radiusKm, fuelType: ft, lat, lng, skipFly });
   }, [country, search]);
 
   const [hoveredStation, setHoveredStation] = useState(null);
@@ -108,7 +104,7 @@ function App() {
   }, []);
 
   const handleLocate = useCallback(({ lat, lng }) => {
-    search({ query: '', country, radiusKm: 15, fuelType, lat, lng });
+    search({ query: '', country, radiusKm: 30, fuelType, lat, lng });
   }, [country, fuelType, search]);
 
   const handleMapMove = useCallback(({ lat, lng, radiusKm }) => {
@@ -127,7 +123,7 @@ function App() {
   const handleFuelChange = useCallback((newFuel) => {
     setFuelType(newFuel);
     if (searchCenter) {
-      search({ query: '', country, radiusKm: 15, fuelType: newFuel, lat: searchCenter.lat, lng: searchCenter.lng, skipFly: true });
+      search({ query: '', country, radiusKm: 30, fuelType: newFuel, lat: searchCenter.lat, lng: searchCenter.lng, skipFly: true });
     }
   }, [country, searchCenter, search]);
 

@@ -46,7 +46,8 @@ export default function StationList({
   const cheapestPrice = withPrices.length ? withPrices[0]?.prices[fuelType] : null;
   const expensivePrice = withPrices.length ? withPrices[withPrices.length - 1]?.prices[fuelType] : null;
 
-  if (loading) {
+  // Full loading spinner only on initial search (no existing stations)
+  if (loading && !stations.length) {
     return (
       <div className="loading-state">
         <div className="loading-spinner" />
@@ -55,7 +56,7 @@ export default function StationList({
     );
   }
 
-  if (error) {
+  if (error && !stations.length) {
     return (
       <div className="empty-state">
         <div className="empty-icon">!</div>
@@ -84,6 +85,7 @@ export default function StationList({
 
   return (
     <>
+      {loading && <div className="station-list-loading-bar" />}
       <div className="station-list-header">
         {countryCode && COUNTRIES[countryCode] && (
           <div className="station-list-filters">

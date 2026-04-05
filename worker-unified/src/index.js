@@ -1,5 +1,7 @@
 import { handleOptions } from './lib/cors.js';
 import { json } from './lib/response.js';
+import { filterSpread } from './lib/geo.js';
+import { getStations } from './lib/kv.js';
 import { VEHICLES } from './data/vehicles.js';
 
 // Tier A — bulk-cached countries (full dataset refresh via cron)
@@ -240,6 +242,16 @@ export default {
     }
 
     try {
+      // Spread mode: spatially distributed sampling for low-zoom overviews (Tier A only)
+      const spread = url.searchParams.get('spread') === 'true';
+      if (spread && TIER_A[countryCode]) {
+        const radiusKm = parseFloat(url.searchParams.get('radius') || '15');
+        const stations = await getStations(countryCode.toUpperCase(), env);
+        if (!stations) return json({ error: 'Data not yet cached, try again later' }, 503);
+        const filtered = filterSpread(stations, lat, lng, radiusKm);
+        return json({ stations: filtered, count: filtered.length });
+      }
+
       return await handler.handleQuery(url, env, countryCode);
     } catch (e) {
       console.error(`[${countryCode.toUpperCase()}] Error:`, e);

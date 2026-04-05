@@ -9,6 +9,16 @@ import { haversineDistance } from '../utils/geo';
 
 const WORKER_URL = import.meta.env.VITE_WORKER_URL;
 
+// ─── Response cache (avoids re-fetching on zoom in/out) ─────────────
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_MAX = 30;
+
+function cacheKey(cc, lat, lng, radiusKm, fuelType) {
+  // Round params so slight center drift still hits cache
+  return `${cc}:${lat.toFixed(2)}:${lng.toFixed(2)}:${Math.round(radiusKm / 5) * 5}:${fuelType || ''}`;
+}
+
 // ─── Fetch from unified worker ───────────────────────────────────────
 async function fetchFromWorker(countryCode, lat, lng, radiusKm, fuelType) {
   if (!WORKER_URL) {
@@ -16,10 +26,19 @@ async function fetchFromWorker(countryCode, lat, lng, radiusKm, fuelType) {
     return generateDemoStations(lat, lng, radiusKm, countryCode);
   }
 
+  // Check cache
+  const key = cacheKey(countryCode, lat, lng, radiusKm, fuelType);
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) {
+    console.log(`[FuelAPI] Cache hit: ${key}`);
+    return cached.data;
+  }
+
   const url = new URL(`${WORKER_URL}/api/${countryCode.toLowerCase()}`);
   url.searchParams.set('lat', lat);
   url.searchParams.set('lng', lng);
   url.searchParams.set('radius', radiusKm);
+  url.searchParams.set('spread', 'true');
   if (fuelType) url.searchParams.set('fuelType', fuelType);
 
   let res;
@@ -51,7 +70,7 @@ async function fetchFromWorker(countryCode, lat, lng, radiusKm, fuelType) {
   const json = await res.json();
 
   // Normalize prices: some handlers return {price: number}, others return raw numbers
-  return (json.stations || []).map((s) => {
+  const stations = (json.stations || []).map((s) => {
     if (!s.prices) return s;
     const normalized = {};
     for (const [key, val] of Object.entries(s.prices)) {
@@ -59,6 +78,12 @@ async function fetchFromWorker(countryCode, lat, lng, radiusKm, fuelType) {
     }
     return { ...s, prices: normalized };
   });
+
+  // Store in cache (evict oldest if full)
+  if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
+  cache.set(key, { data: stations, ts: Date.now() });
+
+  return stations;
 }
 
 // ─── Public API ────────────────────────────────────────────────────────

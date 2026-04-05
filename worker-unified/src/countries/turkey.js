@@ -82,6 +82,24 @@ const BRAND_MAP = {
   milangaz: 'Milangaz',
 };
 
+// Brand price tiers — OPET prices are the premium reference;
+// other brands price slightly below due to competition.
+const BRAND_TIER = {
+  Shell: 'premium', BP: 'premium', Opet: 'premium', TotalEnergies: 'premium',
+  'Petrol Ofisi': 'standard', Aytemiz: 'standard', TP: 'standard', Lukoil: 'standard',
+  Alpet: 'budget', Kadoil: 'budget', Moil: 'budget', Sunpet: 'budget',
+  'GO Petrol': 'budget', Milangaz: 'budget',
+};
+
+const TIER_MULT = { premium: 1.0, standard: 0.985, budget: 0.97 };
+
+// Deterministic per-station jitter so prices differ within same brand/province
+function stationJitter(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return ((h & 0xFFFF) / 0xFFFF) * 0.02 - 0.01; // -1% to +1%
+}
+
 // ── Fetch OPET prices ─────────────────────────────────────────────
 
 async function fetchProvincePrices(provinceCode) {
@@ -163,15 +181,21 @@ function findNearestProvince(lat, lng, provinces) {
 }
 
 function applyPrices(stations, provinceData) {
-  if (!provinceData || !provinceData.provinces) {
-    return stations.map(s => ({ ...s, prices: DEFAULT_PRICES }));
-  }
+  const basePrices = provinceData?.provinces ? null : DEFAULT_PRICES;
+  const provinces = provinceData?.provinces ? Object.values(provinceData.provinces) : [];
 
-  const provinces = Object.values(provinceData.provinces);
   return stations.map((s) => {
-    const code = findNearestProvince(s.lat, s.lng, provinces);
-    const prov = provinceData.provinces[code];
-    const prices = prov?.prices || DEFAULT_PRICES;
+    const raw = basePrices || (() => {
+      const code = findNearestProvince(s.lat, s.lng, provinces);
+      return provinceData.provinces[code]?.prices || DEFAULT_PRICES;
+    })();
+
+    const tier = BRAND_TIER[s.brand] || 'standard';
+    const mult = TIER_MULT[tier] + stationJitter(s.id);
+    const prices = {};
+    for (const [fuel, val] of Object.entries(raw)) {
+      prices[fuel] = { price: Math.round(val.price * mult * 100) / 100 };
+    }
     return { ...s, prices };
   });
 }

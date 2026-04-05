@@ -86,3 +86,18 @@ export function detectCountryFromCoords(lat, lng) {
   return null;
 }
 
+/**
+ * Map zoom level to a search radius (km).
+ * At low zoom we send a large radius — the worker caps results at 100 stations anyway.
+ * Returns null at zoom >= 12, meaning the caller should use the viewport-based radius.
+ */
+export function zoomToRadius(zoom) {
+  if (zoom >= 12) return null;
+  if (zoom >= 10) return 80;
+  if (zoom >= 9)  return 100;
+  if (zoom >= 8)  return 150;
+  if (zoom >= 7)  return 200;
+  if (zoom >= 6)  return 300;
+  return 500;
+}
+

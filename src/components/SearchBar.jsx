@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { COUNTRIES } from '../services/countries';
 import { autocompletePlaces } from '../services/geocoding';
+import { updateUrlParams } from '../utils/url';
+import { zoomToRadius } from '../utils/geo';
 
 function getUrlParams() {
   const params = new URLSearchParams(window.location.search);
@@ -58,13 +60,16 @@ export default function SearchBar({ onSearch, onCountryDetected, activeFuelType 
       setDetectedCountry(cc);
       setFuelType(fuel);
       onCountryDetected?.(cc);
+      const urlZoom = Number(new URLSearchParams(window.location.search).get('zoom'));
+      const hasZoom = urlZoom >= 1 && urlZoom <= 22;
       onSearch({
         query: p.q || '',
-        radiusKm: 15,
+        radiusKm: hasZoom ? (zoomToRadius(urlZoom) ?? 30) : 30,
         fuelType: fuel,
         lat: p.lat,
         lng: p.lng,
         country: cc,
+        skipFly: hasZoom,
       });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -112,18 +117,18 @@ export default function SearchBar({ onSearch, onCountryDetected, activeFuelType 
 
     // Sync all search state to URL for sharing (skip on trip page)
     if (!window.location.hash.startsWith('#/trip')) {
-      const params = new URLSearchParams();
-      if (query.trim()) params.set('q', query.trim());
-      if (selectedCoords?.lat != null) params.set('lat', selectedCoords.lat);
-      if (selectedCoords?.lng != null) params.set('lng', selectedCoords.lng);
-      params.set('country', detectedCountry);
-      params.set('fuel', fuel);
-      window.history.replaceState(null, '', `?${params.toString()}`);
+      updateUrlParams({
+        q: query.trim() || null,
+        lat: selectedCoords?.lat ?? null,
+        lng: selectedCoords?.lng ?? null,
+        country: detectedCountry,
+        fuel,
+      });
     }
 
     onSearch({
       query: query.trim(),
-      radiusKm: 15,
+      radiusKm: 30,
       fuelType: fuel,
       lat: selectedCoords?.lat,
       lng: selectedCoords?.lng,
