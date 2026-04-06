@@ -298,15 +298,7 @@ export default function FuelMap({
 
     const features = withPrice.map((station, rankIdx) => {
       const price = station.prices[fuelType];
-      let color = '#9ca3af'; // gray for no price
-      if (price != null && minPrice != null && maxPrice != null && withPrice.length > 1) {
-        const ratio = (price - minPrice) / (maxPrice - minPrice || 1);
-        if (ratio < 0.25) color = '#22c55e';
-        else if (ratio > 0.75) color = '#ef4444';
-        else color = '#f97316';
-      } else if (price != null) {
-        color = '#f97316';
-      }
+      const color = '#f97316'; // orange for all pins
       return {
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [station.lng, station.lat] },
@@ -488,10 +480,8 @@ export default function FuelMap({
       map._pillIds.push(pillId);
 
       const rankNum = parseInt(rank, 10);
-      let textColor = '#1f2937';
-      let accentColor = '#f97316';
-      if (rankNum === 1) { textColor = '#16a34a'; accentColor = '#16a34a'; }
-      else if (rankNum === totalStations) { textColor = '#dc2626'; accentColor = '#dc2626'; }
+      const textColor = '#1f2937';
+      const accentColor = '#f97316';
 
       const textW = measureCtx.measureText(price).width;
       const hasLogo = !!logoUrl;

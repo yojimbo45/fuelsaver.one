@@ -35,9 +35,9 @@ async function fetchFromWorker(countryCode, lat, lng, radiusKm, fuelType) {
   }
 
   const url = new URL(`${WORKER_URL}/api/${countryCode.toLowerCase()}`);
-  url.searchParams.set('lat', lat);
-  url.searchParams.set('lng', lng);
-  url.searchParams.set('radius', radiusKm);
+  url.searchParams.set('lat', lat.toFixed(4));
+  url.searchParams.set('lng', lng.toFixed(4));
+  url.searchParams.set('radius', Math.min(Math.round(radiusKm), 150));
   url.searchParams.set('spread', 'true');
   if (fuelType) url.searchParams.set('fuelType', fuelType);
 

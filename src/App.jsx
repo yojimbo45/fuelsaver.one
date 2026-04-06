@@ -32,6 +32,7 @@ function App() {
   const trip = useTripRoute();
   const [tripHighlightedStation, setTripHighlightedStation] = useState(null);
   const [labelStyle, setLabelStyle] = useState(() => localStorage.getItem('labelStyle') || 'classic');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const handleLabelStyleChange = useCallback((style) => {
     setLabelStyle(style);
@@ -76,6 +77,26 @@ function App() {
     }
   }, [page, searchQuery, country, fuelType]);
 
+  // On mount, restore cached GPS location if no URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('lat') || params.get('lng')) return; // shared link takes priority
+
+    const cached = localStorage.getItem('lastGpsLocation');
+    if (!cached) return;
+
+    try {
+      const { lat, lng } = JSON.parse(cached);
+      const detected = detectCountryFromCoords(lat, lng);
+      if (detected && COUNTRIES[detected]) {
+        setCountry(detected);
+        const fuel = COUNTRIES[detected].defaultFuel;
+        setFuelType(fuel);
+        search({ query: '', country: detected, radiusKm: 30, fuelType: fuel, lat, lng });
+      }
+    } catch { /* ignore corrupt data */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const countryData = COUNTRIES[country];
 
   const handleCountryDetected = useCallback((code) => {
@@ -104,6 +125,7 @@ function App() {
   }, []);
 
   const handleLocate = useCallback(({ lat, lng }) => {
+    localStorage.setItem('lastGpsLocation', JSON.stringify({ lat, lng }));
     search({ query: '', country, radiusKm: 30, fuelType, lat, lng });
   }, [country, fuelType, search]);
 
@@ -133,7 +155,14 @@ function App() {
       <div className="main-layout">
         {page === 'home' ? (
           <>
-            <aside className="sidebar">
+            <aside className={`sidebar${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
+              <button className="sidebar-handle" onClick={() => setSidebarOpen(o => !o)}>
+                <span className="sidebar-handle-bar" />
+                <span className="sidebar-handle-label">
+                  {stations.length > 0 ? `${stations.length} stations` : 'Stations'}
+                </span>
+                <svg className={`sidebar-handle-chevron${sidebarOpen ? '' : ' flipped'}`} viewBox="0 0 12 8" width="12" height="8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 1l5 5 5-5"/></svg>
+              </button>
               <SearchBar onSearch={handleSearch} onCountryDetected={handleCountryDetected} activeFuelType={fuelType} />
               <SavingsBanner
                 stations={stations}
@@ -175,7 +204,12 @@ function App() {
           </>
         ) : (
           <>
-            <aside className="sidebar">
+            <aside className={`sidebar${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
+              <button className="sidebar-handle" onClick={() => setSidebarOpen(o => !o)}>
+                <span className="sidebar-handle-bar" />
+                <span className="sidebar-handle-label">Trip Details</span>
+                <svg className={`sidebar-handle-chevron${sidebarOpen ? '' : ' flipped'}`} viewBox="0 0 12 8" width="12" height="8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 1l5 5 5-5"/></svg>
+              </button>
               <TripSidebar
                 origin={trip.origin}
                 setOrigin={trip.setOrigin}

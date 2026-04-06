@@ -656,11 +656,10 @@ export const COUNTRIES = {
       { id: 'e95', label: '95 (E10)' },
       { id: 'e98', label: '98' },
       { id: 'diesel', label: 'Diesel' },
-      { id: 'lpg', label: 'LPG' },
     ],
     defaultFuel: 'e95',
-    source: 'gas.didnt.work (Waze)',
-    sourceUrl: 'https://gas.didnt.work/',
+    source: 'polttoaine.net',
+    sourceUrl: 'https://polttoaine.net/',
   },
   RO: {
     code: 'RO',

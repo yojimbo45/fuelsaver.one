@@ -72,6 +72,11 @@
   touch-action: pan-y;
 }
 
+/* ── Sidebar Handle (mobile only) ────────── */
+.sidebar-handle {
+  display: none;
+}
+
 /* ── Search Bar ─────────────────────────── */
 .search-bar {
   padding: 16px;
@@ -811,6 +816,50 @@
     max-height: 50%;
     border-right: none;
     border-top: 1px solid var(--gray-200);
+    transition: max-height 0.25s ease;
+  }
+  .sidebar.sidebar-collapsed {
+    max-height: 44px;
+    overflow: hidden;
+  }
+  .search-bar {
+    display: none;
+  }
+  .sidebar-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    min-height: 44px;
+    border: none;
+    border-bottom: 1px solid var(--gray-200);
+    background: var(--gray-50);
+    cursor: pointer;
+    flex-shrink: 0;
+    touch-action: manipulation;
+    font-family: inherit;
+  }
+  .sidebar-handle-bar {
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--gray-300);
+    flex-shrink: 0;
+  }
+  .sidebar-handle-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-500);
+  }
+  .sidebar-handle-chevron {
+    width: 12px;
+    height: 8px;
+    color: var(--gray-400);
+    transition: transform 0.25s ease;
+  }
+  .sidebar-handle-chevron.flipped {
+    transform: rotate(180deg);
   }
   .map-wrapper {
     flex: 1;
