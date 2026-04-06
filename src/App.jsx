@@ -1,8 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import './App.css';
 import { COUNTRIES, DEFAULT_COUNTRY } from './services/countries';
 import { useStations } from './hooks/useStations';
-import { useTripRoute } from './hooks/useTripRoute';
 import { detectCountryFromCoords } from './utils/geo';
 import { navigateTo } from './utils/url';
 import Header from './components/Header';
@@ -10,9 +9,9 @@ import SearchBar from './components/SearchBar';
 import SavingsBanner from './components/SavingsBanner';
 import StationList from './components/StationList';
 import FuelMap from './components/FuelMap';
-import TripSidebar from './components/trip/TripSidebar';
-import TripMap from './components/trip/TripMap';
 import LabelStyleToggle from './components/LabelStyleToggle';
+
+const TripPage = lazy(() => import('./components/trip/TripPage'));
 
 const DEFAULT_TITLE = 'FuelSaver — Compare Fuel Prices in 34 Countries | Find Cheapest Gas Stations';
 const DEFAULT_DESC = 'Compare real-time fuel prices across 34 countries including France, Germany, Spain, UK, Italy, Australia, India, Brazil, and more. Find the cheapest gas stations near you and save money on every fill-up.';
@@ -29,8 +28,6 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const { stations, loading, error, searchCenter, search } = useStations();
-  const trip = useTripRoute();
-  const [tripHighlightedStation, setTripHighlightedStation] = useState(null);
   const [labelStyle, setLabelStyle] = useState(() => localStorage.getItem('labelStyle') || 'classic');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -203,52 +200,14 @@ function App() {
             </div>
           </>
         ) : (
-          <>
-            <aside className={`sidebar${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
-              <button className="sidebar-handle" onClick={() => setSidebarOpen(o => !o)}>
-                <span className="sidebar-handle-bar" />
-                <span className="sidebar-handle-label">Trip Details</span>
-                <svg className={`sidebar-handle-chevron${sidebarOpen ? '' : ' flipped'}`} viewBox="0 0 12 8" width="12" height="8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 1l5 5 5-5"/></svg>
-              </button>
-              <TripSidebar
-                origin={trip.origin}
-                setOrigin={trip.setOrigin}
-                destination={trip.destination}
-                setDestination={trip.setDestination}
-                waypoints={trip.waypoints}
-                addWaypoint={trip.addWaypoint}
-                removeWaypoint={trip.removeWaypoint}
-                updateWaypoint={trip.updateWaypoint}
-                consumption={trip.consumption}
-                setConsumption={trip.setConsumption}
-                tankCapacity={trip.tankCapacity}
-                setTankCapacity={trip.setTankCapacity}
-                fuelType={trip.fuelType}
-                setFuelType={trip.setFuelType}
-                countryData={trip.countryData}
-                tripCost={trip.tripCost}
-                loading={trip.loading}
-                error={trip.error}
-                recommendedStations={trip.recommendedStations}
-                stationsLoading={trip.stationsLoading}
-                calculate={trip.calculate}
-                invertRoute={trip.invertRoute}
-                onStationClick={setTripHighlightedStation}
-              />
-            </aside>
-            <div className="map-wrapper">
-              <LabelStyleToggle value={labelStyle} onChange={handleLabelStyleChange} />
-              <TripMap
-                route={trip.route}
-                origin={trip.origin}
-                destination={trip.destination}
-                waypoints={trip.waypoints}
-                recommendedStations={trip.recommendedStations}
-                highlightedStation={tripHighlightedStation}
-                labelStyle={labelStyle}
-              />
-            </div>
-          </>
+          <Suspense fallback={<div className="trip-loading">Loading trip planner...</div>}>
+            <TripPage
+              sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
+              labelStyle={labelStyle}
+              onLabelStyleChange={handleLabelStyleChange}
+            />
+          </Suspense>
         )}
       </div>
     </>
