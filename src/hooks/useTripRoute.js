@@ -221,9 +221,9 @@ export function useTripRoute() {
     setRecommendedStations([]);
 
     try {
-      // Adaptive: longer trips get wider intervals to keep request count manageable
-      const interval = distanceKm > 1000 ? 150 : distanceKm > 500 ? 100 : 50;
-      const radius = distanceKm > 1000 ? 10 : distanceKm > 500 ? 15 : 20;
+      // Adaptive intervals — radius must be ≥ interval/2 to ensure full route coverage
+      const interval = distanceKm > 1000 ? 80 : distanceKm > 500 ? 60 : 40;
+      const radius = Math.ceil(interval / 2) + 5;
       const samplePoints = sampleRoutePoints(routeResult.geometry, interval);
 
       const pointsByCountry = {};
