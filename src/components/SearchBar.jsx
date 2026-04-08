@@ -116,7 +116,7 @@ export default function SearchBar({ onSearch, onCountryDetected, activeFuelType 
     if (!detectedCountry) return;
 
     // Sync all search state to URL for sharing (skip on trip page)
-    if (!window.location.hash.startsWith('#/trip')) {
+    if (!window.location.pathname.startsWith('/trip')) {
       updateUrlParams({
         q: query.trim() || null,
         lat: selectedCoords?.lat ?? null,

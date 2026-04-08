@@ -97,18 +97,18 @@ function distanceToRoute(lat, lng, geometry) {
 // ── URL state helpers ──────────────────────────────────────────────
 
 // Use " to " as separator — readable and unlikely in city names
-function encodeTripToHash(origin, destination) {
-  if (!origin?.text || !destination?.text) return '#/trip';
+function encodeTripPath(origin, destination) {
+  if (!origin?.text || !destination?.text) return '/trip';
   const from = origin.text.replace(/ /g, '+');
   const to = destination.text.replace(/ /g, '+');
-  return `#/trip/${from}-to-${to}`;
+  return `/trip/${from}-to-${to}`;
 }
 
-function decodeTripFromHash() {
-  const hash = window.location.hash;
-  if (!hash.startsWith('#/trip/')) return null;
+function decodeTripFromPath() {
+  const pathname = window.location.pathname;
+  if (!pathname.startsWith('/trip/')) return null;
 
-  const path = hash.slice('#/trip/'.length);
+  const path = pathname.slice('/trip/'.length);
   const sepIdx = path.indexOf('-to-');
   if (sepIdx < 1) return null;
 
@@ -149,7 +149,7 @@ export function useTripRoute() {
   useEffect(() => {
     if (restoredRef.current) return;
     restoredRef.current = true;
-    const saved = decodeTripFromHash();
+    const saved = decodeTripFromPath();
     if (!saved) return;
 
     (async () => {
@@ -332,8 +332,8 @@ export function useTripRoute() {
         stationCount: 0,
       });
 
-      const newHash = encodeTripToHash(o, d);
-      window.history.replaceState(null, '', window.location.pathname + newHash);
+      const newPath = encodeTripPath(o, d);
+      window.history.replaceState(null, '', newPath + window.location.search);
 
       findStationsAlongRoute(result, fuel, result.distance, result.duration, c);
     } catch (err) {

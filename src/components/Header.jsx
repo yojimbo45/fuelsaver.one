@@ -28,18 +28,11 @@ export default function Header({ page, onNavigate }) {
           Fuel Prices
         </a>
         <a
-          href="#/trip"
+          href="/trip"
           className={`header-nav-link${page === 'trip' ? ' active' : ''}`}
           onClick={(e) => handleClick(e, 'trip')}
         >
           Trip Calculator
-        </a>
-        <a
-          href="#/sources"
-          className={`header-nav-link${page === 'sources' ? ' active' : ''}`}
-          onClick={(e) => handleClick(e, 'sources')}
-        >
-          Data Sources
         </a>
       </nav>
     </header>

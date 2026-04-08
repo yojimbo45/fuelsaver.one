@@ -7,6 +7,20 @@
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
+  <!-- Trip Calculator -->
+  <url>
+    <loc>https://fuelsaver.one/trip</loc>
+    <lastmod>2026-04-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <!-- Data Sources -->
+  <url>
+    <loc>https://fuelsaver.one/sources</loc>
+    <lastmod>2026-04-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
   <!-- France -->
   <url>
     <loc>https://fuelsaver.one/?country=FR</loc>

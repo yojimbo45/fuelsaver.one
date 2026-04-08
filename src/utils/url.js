@@ -1,4 +1,4 @@
-/** Merge query-param updates into the current URL without destroying the hash. */
+/** Merge query-param updates into the current URL without destroying the path. */
 export function updateUrlParams(updates) {
   const url = new URL(window.location.href);
   for (const [key, value] of Object.entries(updates)) {
@@ -8,12 +8,11 @@ export function updateUrlParams(updates) {
       url.searchParams.set(key, String(value));
     }
   }
-  window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  window.history.replaceState(null, '', url.pathname + url.search);
 }
 
-/** Change the hash fragment without destroying query params. */
-export function navigateTo(hash) {
-  const url = new URL(window.location.href);
-  url.hash = hash;
-  window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+/** Navigate to a path (e.g. '/trip', '/sources', '/') using History API. */
+export function navigateTo(path) {
+  window.history.pushState(null, '', path);
+  window.dispatchEvent(new PopStateEvent('popstate'));
 }

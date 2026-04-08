@@ -19,9 +19,9 @@ const DEFAULT_TITLE = 'FuelSaver — Compare Fuel Prices in 34 Countries | Find 
 const DEFAULT_DESC = 'Compare real-time fuel prices across 34 countries including France, Germany, Spain, UK, Italy, Australia, India, Brazil, and more. Find the cheapest gas stations near you and save money on every fill-up.';
 
 function getInitialPage() {
-  const hash = window.location.hash;
-  if (hash.startsWith('#/trip')) return 'trip';
-  if (hash.startsWith('#/sources')) return 'sources';
+  const path = window.location.pathname;
+  if (path.startsWith('/trip')) return 'trip';
+  if (path.startsWith('/sources')) return 'sources';
   return 'home';
 }
 
@@ -43,16 +43,16 @@ function App() {
 
   // Handle browser back/forward
   useEffect(() => {
-    const onHashChange = () => {
+    const onPopState = () => {
       setPage(getInitialPage());
     };
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   const handleNavigate = useCallback((target) => {
-    const hashes = { trip: '#/trip', sources: '#/sources' };
-    navigateTo(hashes[target] || '#/');
+    const paths = { trip: '/trip', sources: '/sources' };
+    navigateTo(paths[target] || '/');
     setPage(target);
   }, []);
 
